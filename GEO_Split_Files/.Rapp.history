@@ -1,0 +1,1090 @@
+x
+df
+model<-glm(count ~ conditon+duration, x, family="poisson")
+summary(model)
+df<-data.frame(#
+	conditon=factor(rep(c("None", "Bleach", "Bleach"), each=5), levels=c("Bleach", "None")),#
+	duration=rep(c(0,0,30), each=5),#
+	count=c(#
+		rpois(5, 125), #
+		rpois(5, 125 / x),#
+		rpois(5, 125 / (2*x))#
+	)#
+)
+model<-glm(count ~ conditon+duration, df, family="poisson")
+summary(model)
+df<-data.frame(#
+	conditon=factor(rep(c("None", "Bleach", "Bleach"), each=5), levels=c("None", "Bleach")),#
+	duration=rep(c(0,0,30), each=5),#
+	count=c(#
+		rpois(5, 125), #
+		rpois(5, 125 / x),#
+		rpois(5, 125 / (2*x))#
+	)#
+)
+model<-glm(count ~ conditon+duration, df, family="poisson")
+summary(model)
+x<-125#
+df<-data.frame(#
+	conditon=factor(rep(c("None", "Bleach", "Bleach"), each=5), levels=c("None", "Bleach")),#
+	duration=rep(c(0,0,30), each=5),#
+	count=c(#
+		rpois(5, 125), #
+		rpois(5, 120),#
+		rpois(5, 110)#
+	)#
+)
+model<-glm(count ~ conditon+duration, df, family="poisson")
+summary(model)
+df
+for (i in 0:10){#
+	y<- (i/-10)* 1:10 + 120#
+	print(y)#
+}
+for (i in 0:10){#
+	y<- (i/-1)* 1:10 + 120#
+	print(y)#
+}
+for (i in 0:10:2){#
+	y<- (i/-1)* 1:10 + 120#
+	print(y)#
+}
+for (i in 0:10){#
+	y<- (i/-1)* 1:10 + 120#
+	print(y)#
+}
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 9, step=3) + 120#
+	print(y)#
+}
+for (i in 0:10){
+y<- (i/-1)* seq(0, 9, step=3) + 120
+}
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 9, step=3) + 120#
+	print(y)#
+}
+warnings()
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 9,by=3) + 120#
+	print(y)#
+}
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 6,by=3) + 120#
+	print(y)#
+}
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 6,by=3) + 120#
+		df<-data.frame(#
+			conditon=factor(rep(c("None", "Bleach", "Bleach"), each=5), levels=c("None", "Bleach")),#
+			duration=rep(c(0,0,30), each=5),#
+			count=c(#
+				rpois(5, y[1]), #
+				rpois(5, y[2]),#
+				rpois(5, y[3])#
+			)#
+		)#
+		model<-glm(count ~ condition + duration, df, family="poisson")#
+}
+for (i in 0:10){#
+	y<- (i/-1)* seq(0, 6,by=3) + 120#
+		df<-data.frame(#
+			condition=factor(rep(c("None", "Bleach", "Bleach"), each=5), levels=c("None", "Bleach")),#
+			duration=rep(c(0,0,30), each=5),#
+			count=c(#
+				rpois(5, y[1]), #
+				rpois(5, y[2]),#
+				rpois(5, y[3])#
+			)#
+		)#
+		model<-glm(count ~ condition + duration, df, family="poisson")#
+}
+x<-c("GeneID", "description", "FC", "logFC", "S1_GeneCount", "S2_GeneCount", "S3_GeneCount")
+x
+y<-setdiff(x, c("GeneID", "FC"))
+y
+x<-c(x,y)
+x
+x<-c("GeneID", "description", "FC", "logFC", "S1_GeneCount", "S2_GeneCount", "S3_GeneCount")
+x
+y<-setdiff(x, c("GeneID", "FC"))
+y
+x<-c(c("GeneID", "FC"), y)
+x
+z<-c("GeneID", "ensmebl_gene_id", "description")
+R
+x<-data.frame(a=c(1,2,3), b=c(4,5,6))
+x
+names(x)
+names(x) - "b"
+names(x) + "b"
+setdiff(names(x), "b")
+x<-data.frame(a=c(1,2,3), b=c(4,5,6), c=c(7,8,9), d=c(10,11,12))
+x
+x<-x[,setdiff(names(x, "b"))]
+x<-x[,setdiff(names(x), "b"))]
+x<-x[,setdiff(names(x), "b")]
+x
+print(paste("hello \n", "goodbye"))
+rpois(25,10)
+rpois(10, 25)
+rnbinom
+rnbinom(25,10)
+rnbinom(25,10, 0.5)
+sample(rpois(25,1000), 10)
+sample(rpois(1000, 25), 10)
+Age = sample(c(rpois(1000, 25), rpois(1000, 45), rpois(1000, 65)), 1000)
+Age
+plot(Age)
+hist(Age)
+Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1000, 65)), 1000)
+hist(Age)
+Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000)
+hist(Age)
+y=sample(x('Male', 'Female'), 1000, replace=T, prob=0.5)
+y=sample(c('Male', 'Female'), 1000, replace=T, prob=0.5)
+y=sample(c('Male', 'Female'), 1000, replace=T, prob=0.5, 0.5)
+y=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))
+y
+sum(y[y=='Male'])
+sum(y=='Male')
+sum(y=='Female')
+y=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))
+sum(y=='Female')
+y=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))
+sum(y=='Female')
+rnorm(1000)
+rnorm(1000) * 137
+rnorm(1000)
+rnorm(1000) * 137
+rnorm(10)+1
+rnorm(10)
+rnorm(10, 1)
+rnorm(10, 10, 10)
+rnorm(10, 10, 1)
+mean(137, 185)
+mean(c(137, 185))
+rnorm(162, 10)
+rnorm(10, 162, 10)
+rnorm(10, 162, 170-162)
+f=rnorm(1000, 162, 170-162); m=rnorm(1000,178, 185-177 )
+sample(m,1)
+sample(m,2)
+length(m)
+x=2
+df<-data.frame(#
+	Transaction = 1:1000#
+	Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000)#
+	Sex = Sex#
+	Height_cm = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))#
+)
+df<-data.frame(#
+	Transaction = 1:1000,#
+	Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000),#
+	Sex = Sex,#
+	Height_cm = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))#
+)
+set.seed=(011790)#
+Sex=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))#
+f=rnorm(1000, 162, 170-162); m=rnorm(1000,178, 185-177 )#
+df<-data.frame(#
+	Transaction = 1:1000,#
+	Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000),#
+	Sex = Sex,#
+	Height_cm = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))#
+)
+hist(df$Height)
+hist(df[df$Sex='Male', 'Height_cm'])
+hist(df[df$Sex=='Male', 'Height_cm'])
+hist(df[df$Sex=='Female', 'Height_cm'])
+ifelse(Sex=='Male', 0.5, 0)
+ifelse(Sex=='Male', 0.5, 0)*10
+ifelse(Sex=='Male', 5, 0) + Height / 2
+set.seed=(011790)#
+Sex=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))#
+f=rnorm(1000, 162, 170-162); m=rnorm(1000,178, 185-177 )#
+Height = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))
+ifelse(Sex=='Male', 5, 0) + Height / 2
+ifelse(Sex=='Male', 5, 0) + (Height / 2)
+hist(ifelse(Sex=='Male', 5, 0) + (Height / 2))
+hist(ifelse(Sex=='Male', 2, 0) + (Height / 2))
+hist(ifelse(Sex=='Male', 1.5, 0) + (Height / 2))
+ifelse(Sex=='Male', 1.5, 0) + (Height / 2) - (df$Age / 10)
+hist(ifelse(Sex=='Male', 1.5, 0) + (Height / 2) - (df$Age / 10))
+set.seed=(011790)#
+Sex=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))#
+f=rnorm(1000, 162, 170-162); m=rnorm(1000,178, 185-177 )#
+Height = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))#
+Weight = ifelse(Sex=='Male', 1.5, 0) + (Height / 2) - (df$Age / 10)#
+df<-data.frame(#
+	Transaction = 1:1000,#
+	Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000),#
+	Sex = Sex,#
+	Height = Height#
+	Weight = Weight#
+)
+set.seed=(011790)#
+Sex=sample(c('Male', 'Female'), 1000, replace=T, prob=c(0.5, 0.5))#
+f=rnorm(1000, 162, 170-162); m=rnorm(1000,178, 185-177 )#
+Height = sapply(Sex, function(S) ifelse(S=='Male', sample(m,1), sample(f,1) ))#
+Weight = ifelse(Sex=='Male', 1.5, 0) + (Height / 2) - (df$Age / 10)#
+df<-data.frame(#
+	Transaction = 1:1000,#
+	Age = sample(c(rpois(100, 25), rpois(1500, 45), rpois(1200, 65)), 1000),#
+	Sex = Sex,#
+	Height = Height,#
+	Weight = Weight#
+)
+df
+plot(df, Height ~ Weight)
+plot(df$Height, df$Weight)
+plot(df$Height, df$Age)
+plot(df$Height, df$Sex)
+boxplot(df, Height ~ Sex)
+boxplot(df$Height ~ df$Sex)
+x=sample(1:15)
+x
+x=c('T38', 'T256', 'T307', 'T117', 'T138', 'T263', 'T290', 'T308', 'T326', 'T387', 'T697, 'T284')
+x=c('T38', 'T256', 'T307', 'T117', 'T138', 'T263', 'T290', 'T308', 'T326', 'T387', 'T697', 'T284', 'T190', 'T317', 'T876')
+sample(x, 5, replace=T)
+set.seed(011790)
+x=c('T38', 'T256', 'T307', 'T117', 'T138', 'T263', 'T290', 'T308', 'T326', 'T387', 'T697', 'T284', 'T190', 'T317', 'T876')
+sample(x, 5, replace=T)
+df<-read.table("/Users/afaranda/Desktop/Untitled.txt")
+df<-read.table("/Users/afaranda/Desktop/CISC683_HW2_Table.txt")
+df<-read.table("/Users/afaranda/Desktop/CISC683_HW2_Table.txt", header=T)
+df<-read.table("/Users/afaranda/Desktop/CISC683_HW2_Table.txt", header=T, quote="")
+df
+database<-list(#
+	a=c('a', 'b', 'c', 'd'),#
+	b=c('a', 'b'),#
+	c=c('a', 'c', 'd'),#
+	d=c('c', 'b','d'),#
+	e=c('b', 'c'),#
+	f=c('b', 'd'), #
+	g=c('c', 'd'),#
+	h=c('a', 'c', 'd', 'e'),#
+	i=c('c', 'e'),#
+	j=c('b', 'c', 'e'),#
+	k=c('d', 'e'),#
+	l=c('b', 'e'),#
+	m=c('a', 'e'),#
+	n=c('b', 'd')#
+)
+database
+database[[n]]
+database[['a']]
+grep('a',database[['a']])
+grep('f',database[['a']])
+grepl('f',database[['a']])
+grepl('a',database[['a']])
+sum(database[['a']] == 'a')
+v
+sum(database[['a']] == 'v')
+grep('a', database)
+length(grep('a', database))
+length(grep('b', database))
+length(grep('c', database))
+length(grep('d', database))
+length(grep('e', database))
+minSup=3#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for i in I{#
+		if(length(grep(i, database))	 > M){#
+			L1<-append(L1, i)#
+		}		#
+	}#
+}
+L1<-findFrequentOneItem(database, I, minSup)
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for i in I{#
+		if(length(grep(i, database))	 > M){#
+			L1<-append(L1, i)#
+		}		#
+	}#
+}
+minSup=3#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 > M){#
+			L1<-append(L1, i)#
+		}		#
+	}#
+}
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 > M){#
+			L1<-append(L1, i)#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+minSup=3#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 > M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+names(L1)
+minSup=6#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 > M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+minSup=6#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 => M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+minSup=6#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 >= M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+database<-list(#
+	a=c('a', 'b', 'c', 'd'),#
+	b=c('a', 'b'),#
+	c=c('a', 'c', 'd'),#
+	d=c('c', 'b','d'),#
+	e=c('b', 'c'),#
+	f=c('b', 'd'), #
+	g=c('c', 'd'),#
+	h=c('a', 'c', 'd', 'e'),#
+	i=c('c', 'e'),#
+	j=c('b', 'c', 'e'),#
+	k=c('d', 'e'),#
+	l=c('b', 'e'),#
+	m=c('a', 'e'),#
+	n=c('b', 'd')#
+)#
+minSup=6#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 >= M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, minSup)
+L1
+database<-list(#
+	a=c('a', 'b', 'c', 'd'),#
+	b=c('a', 'b'),#
+	c=c('a', 'c', 'd'),#
+	d=c('c', 'b','d'),#
+	e=c('b', 'c'),#
+	f=c('b', 'd'), #
+	g=c('c', 'd'),#
+	h=c('a', 'c', 'd', 'e'),#
+	i=c('c', 'e'),#
+	j=c('b', 'c', 'e'),#
+	k=c('d', 'e'),#
+	l=c('b', 'e'),#
+	m=c('a', 'e'),#
+	n=c('b', 'd')#
+)#
+minSup=6#
+I=c('a', 'b', 'c', 'd', 'e')#
+findFrequentOneItem<-function(D, I, M){#
+	L1 <-list()#
+	count<-0#
+	for(i in I){#
+		if(length(grep(i, database))	 >= M){#
+			L1[[i]]<-length(grep(i, database))	#
+		}		#
+	}#
+	return(L1)#
+}#
+L1<-findFrequentOneItem(database, I, 4)
+L1
+names(L1)
+names(L1)[order(unlist(L1))]
+names(L1)[order(unlist(L1), decreasing=F)]
+test<-data.frame(#
+	sample=c(paste("S",1:15,sep=''))#
+)
+test
+test<-data.frame(#
+	sample=c(paste("S",1:15,sep=''))#
+	genotype=c(rep('WT',9), rep('KO',6))#
+)
+test<-data.frame(#
+	sample=c(paste("S",1:15,sep='')),#
+	genotype=c(rep('WT',9), rep('KO',6))#
+)
+test
+test<-data.frame(#
+	sample=c(paste("S",1:15,sep='')),#
+	genotype=c(rep('WT',9), rep('KO',6)),#
+	time=c(rep(c(0,24,48), each=3), rep(c(0,48), each=3))#
+)
+test
+getGroupList<-function(df, sampCol='sample', fcCols=c('genotype', 'time')){#
+	nfactors = length(fcCols)#
+	levelList<-list()#
+	for (f in fcCols){#
+		levelList[[f]]<-levels(as.factor(df[[samplCol]]))#
+	}#
+	levelList#
+}
+getGroupList(df=test)
+getGroupList<-function(df, sampCol='sample', fcCols=c('genotype', 'time')){#
+	nfactors = length(fcCols)#
+	levelList<-list()#
+	for (f in fcCols){#
+		levelList[[f]]<-levels(as.factor(df[[sampCol]]))#
+	}#
+	levelList#
+}
+getGroupList(df=test)
+getGroupList<-function(df, sampCol='sample', fcCols=c('genotype', 'time')){#
+	nfactors = length(fcCols)#
+	levelList<-list()#
+	for (f in fcCols){#
+		levelList[[f]]<-levels(as.factor(df[[f]]))#
+	}#
+	levelList#
+}
+getGroupList(df=test)
+class(getGroupList(df=test)[[1]]_
+class(getGroupList(df=test)[[1]])
+expand.grid
+expand.grid(test)
+expand.grid(test[,c("genotype", "time")])
+getwd()
+wd<-getwd
+wd<-getwd()
+wd
+paste(wd,'Diff', sep='/')
+s<-9.699202
+s
+347/s
+(347/s)/1.185
+files<-list.files(pattern="GSM*.txt$")
+files
+setwd('/Users/afaranda/Documents/LEC_Time_Series') # Update Accordingly
+files<-list.files(pattern="GSM*.txt$")
+files
+files<-list.files(pattern="^GSM*.txt$")
+files
+files<-list.files(pattern="^GSM")
+files
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		print(names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep=''), #
+			paste(s,'_GeneCount.rpkm', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep=''), #
+			paste(s,'_RPKM', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		check$rpkmDiff<-round(check[,dfc[3]],9) - round(check[,allc[3]], 9)#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+		print(paste("Sum, rpkmDiff:", sum(abs(check$rpkmDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+# Load in data for comparison#
+# Datafiles: #
+#     GeneCount.tsv -- new pipeline output#
+#     GeneCount.tsv.bak -- previous output with duplicated sample#
+#
+setwd('/Users/afaranda/Documents/LEC_Time_Series') # Update Accordingly#
+dataSets<-list()#
+for (i in list.files(pattern="GeneCount.tsv")){#
+ 	dataSets[[i]]<-read.table(i, header=T, quote='', sep='\t')#
+}#
+# Scan data sets to see which columns changed between old and new#
+x<-c()#
+for (i in names(dataSets[[1]])){#
+ 	print(identical(dataSets[[1]][,i], dataSets[[2]][,i]))#
+ 	x<-c(x, !identical(dataSets[[1]][,i], dataSets[[2]][,i]))#
+ }#
+#
+# Verify that Sample S1 has been updated. #
+print(head(dataSets[[1]][,x]))#
+print(head(dataSets[[2]][,x]))#
+#
+# Verify that Start, Stop and CodingLength attributes contain#
+# the same data, just in a different order -- also, no counts#
+y<-dataSets[[1]]$Start != dataSets[[2]]$Start#
+cols<-c(#
+	"GeneID", "Start", "Stop", "CodingLength",#
+	names(dataSets[[1]])[grep("GeneCount", names(dataSets[[1]]))]#
+)#
+files<-list.files(pattern="^GSM")#
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		print(names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep=''), #
+			paste(s,'_GeneCount.rpkm', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep=''), #
+			paste(s,'_RPKM', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		check$rpkmDiff<-round(check[,dfc[3]],9) - round(check[,allc[3]], 9)#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+		print(paste("Sum, rpkmDiff:", sum(abs(check$rpkmDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+plot(dataSets[[1]]$S1_GeneCount, dataSets[[2]]$S1_GeneCount)
+plot(log(dataSets[[1]]$S1_GeneCount,2), log(dataSets[[2]]$S1_GeneCount,2))
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep=''), #
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep=''), #
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}#
+#
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}#
+#
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3]#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}#
+#
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3],#
+			'rpkmDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}#
+#
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3]#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}#
+#
+compare(files, all=dataSets[[1]])
+files<-list.files(pattern="^GSM")#
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff',#
+			allc[3],#
+			dfc[3]#
+		)#
+		print(ord)#
+		print(head(check))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+files<-list.files(pattern="^GSM")#
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff'#
+		)#
+		print(ord)#
+		print(head(check))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+compare<-function(f=files, all=a){#
+	for ( i in f ) {#
+		s<-gsub(".tab.txt","", gsub("GSM303064[4|5|6|7|8|9]_","",i))#
+		df<-read.table( i, header=T, quote="", sep='\t', stringsAsFactors=F)#
+		dup<-unique(#
+			c(#
+				unique(with(all, all[duplicated(GeneID), 'GeneID'])),#
+				unique(with(df, df[duplicated(GeneID), 'GeneID']))#
+			)#
+		)#
+		names(df)<-gsub("S6_GeneCount$", "S6_GeneCount.raw", names(df))#
+		dfc<-c('GeneID', #
+			paste(s,'_GeneCount.raw', sep='')#
+		)#
+		allc<-c(#
+			'GeneID', #
+			paste(s,'_GeneCount', sep='')#
+		)#
+		# Most GeneID are unique -- limit check to those#
+		check<-merge(#
+			df[!(df$GeneID %in% dup), dfc],#
+			all[!(all$GeneID %in% dup), allc],#
+			by='GeneID'#
+		)#
+		check#
+		check$countDiff<-check[,dfc[2]] - check[,allc[2]]#
+		ord<-c(#
+			"GeneID",#
+			allc[2],#
+			dfc[2],#
+			'countDiff'#
+		)#
+		print(head(check[,ord]))#
+		print(paste("Sum, countDiff:", sum(abs(check$countDiff))))#
+	}#
+}
+compare(files, all=dataSets[[1]])
+print(dataSets[[1]][y,cols])#
+print(dataSets[[2]][y,cols])
+compare(files, all=dataSets[[2]])
+rm(list=ls())
+ls()
+setwd('/Users/afaranda/Documents/LEC_Time_Series') # Update Accordingly
+options(echo=F)#
+dataSets<-list()#
+for (i in list.files(pattern="GeneCount.tsv")){#
+ 	dataSets[[i]]<-read.table(i, header=T, quote='', sep='\t')#
+}
+ls()
+i
+names(dataSets)
+list.files()
+getwd()
+list.files()
+# Purpose: Split columns from GeneCount.ReCalcRPKM.tsv into individual samples#
+# Created: March 5, 2019#
+# Author: Adam Faranda#
+#
+# Setup Environment#
+options(echo=F)#
+library(dplyr)#
+library(openxlsx)#
+#
+wd<-getwd()#
+outDir<-paste(wd,'GEO_Split_Files', sep="/")#
+dataFile<-"GeneCount.ReCalcRPKM.tsv"#
+#
+# Import data tables#
+setwd(wd)#
+countData<-read.table(dataFile, quote="", sep="\t", header=T)#
+#
+commonCols<-c("Chr", "GeneID", "Start", "Stop", "CodingLength")#
+setwd(outDir)#
+for ( n in names(countData)[grep("_GeneCount", names(countData))]){#
+	m<-(gsub("_GeneCount","_RPKM",n))#
+	print(paste(gsub("_RPKM", ".tab.txt",m), sep=""))#
+	print(head(countData[c(commonCols, n, m)]))#
+	write.table(#
+		countData[c(commonCols, n, m)],#
+		file=paste(gsub("_RPKM", ".tab.txt",m), sep=""),#
+		quote=F, sep='\t', row.names=F#
+	)#
+}
