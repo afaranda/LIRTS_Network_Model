@@ -30,7 +30,7 @@ tl<-c(
   
 hc_getFileTable <-function(
 	dirList, pattern='GeneCount.txt', 
-	filename="DataFileAnnotations.csv",
+	filename="DataFileAnnotations.csv"
 ){
 	if(filename %in% list.files()){
 		ft<-read.csv(filename)
