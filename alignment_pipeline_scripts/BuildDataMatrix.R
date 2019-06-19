@@ -4,16 +4,28 @@
 #          count data files for individual samples and join them into a data    #
 #          matrix                                                               #
 # Created: April 30, 2019                                                       #
+# Changes:                                                                      #
+#         18Jun2019                                                             #
+#          - Add functionality for processing StringTie results                 #
+#          - update function names to distinguish htseq methods from stringtie  #
+#          - functions prefixed with "hc_" process htseq-count data             #
+#          - functions prefixed with "st_" process stringtie data               #
+#                                                                               #
 # Author: Adam Faranda                                                          #
 #################################################################################
 
-# Iterate over a list of data directories, return a two column table of 
-# datafiles in each directory that match a target pattern
-dl<-c("DBI_Trimmed_HTSeq_Count", "DNA_Link_HTSeq_Count")
+# Iterate over a list of data directories containing htseq-count output files, 
+# return a two column table of datafiles in each directory that match a target pattern
+# dl<-c("DBI_NoTrim_HTSeq_Count", "DNA_Link_NoTrim_HTSeq_Count")
 
-getFileTable <-function(
+dl<-c(
+  "/work/abf/LEC_Time_Series/DBI_NoTrim_HTSeq_Count_Gene", 
+  "/work/abf/LEC_Time_Series/DNA_Link_NoTrim_HTSeq_Count_Gene"
+)
+
+hc_getFileTable <-function(
 	dirList, pattern='GeneCount.txt', 
-	filename="DataFileAnnotations.csv"
+	filename="DataFileAnnotations.csv",
 ){
 	if(filename %in% list.files()){
 		ft<-read.csv(filename)
@@ -40,7 +52,7 @@ getFileTable <-function(
 }
 
 # Given a file table Load datafiles into a list object
-loadFiles<-function(ft){
+hc_loadFiles<-function(ft){
 	dataSets<-list()
 	for(i in 1:nrow(ft)){
 		file<-paste(ft[i,1], ft[i,2], sep='/')
@@ -53,7 +65,7 @@ loadFiles<-function(ft){
 }
 
 # Check Identifier Consistency by iterating over each datafile
-identifierConsistency<-function(ds, ft, idCol=1){
+hc_identifierConsistency<-function(ds, ft, idCol=1){
 	ft$rowCount<-0
 	ft$uniqueID<-0
 	check<-ds[[1]][,idCol]
@@ -73,7 +85,7 @@ identifierConsistency<-function(ds, ft, idCol=1){
 }
 
 # Join count data columns into a matrix
-buildDataFrame<-function(ds, ft, idCol=1){
+hc_buildDataFrame<-function(ds, ft, idCol=1){
 	ft$Sample_Number <-''
 	df<-data.frame(Ensembl=ds[[1]][,idCol], stringsAsFactors=F)
 	for( i in 1:nrow(ft)){
@@ -95,10 +107,10 @@ buildDataFrame<-function(ds, ft, idCol=1){
 }
 
 # Annotate File Table with Group Information -- manually add annotations
-ft<-getFileTable(dl)
-ds<-loadFiles(ft)
-ft<-identifierConsistency(ds, ft)
-raw<-buildDataFrame(ds, ft)
+ft<-hc_getFileTable(dl)
+ds<-hc_loadHtSeqFiles(ft)
+ft<-hc_identifierConsistencyHtSeq(ds, ft)
+raw<-hc_buildHtSeqDataFrame(ds, ft)
 
 
 
