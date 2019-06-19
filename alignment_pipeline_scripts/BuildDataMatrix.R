@@ -23,6 +23,11 @@ dl<-c(
   "/work/abf/LEC_Time_Series/DNA_Link_NoTrim_HTSeq_Count_Gene"
 )
 
+tl<-c(
+  "/work/abf/LEC_Time_Series/DBI_NoTrim_HTSeq_Count_Xscript", 
+  "/work/abf/LEC_Time_Series/DNA_Link_NoTrim_HTSeq_Count_Xscript"
+)
+  
 hc_getFileTable <-function(
 	dirList, pattern='GeneCount.txt', 
 	filename="DataFileAnnotations.csv",
