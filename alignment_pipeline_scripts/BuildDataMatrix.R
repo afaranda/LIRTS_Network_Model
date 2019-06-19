@@ -30,7 +30,7 @@ tl<-c(
   
 hc_getFileTable <-function(
 	dirList, pattern='GeneCount.txt', 
-	filename="DataFileAnnotations.csv",
+	filename="DataFileAnnotations.csv"
 ){
 	if(filename %in% list.files()){
 		ft<-read.csv(filename)
@@ -51,7 +51,7 @@ hc_getFileTable <-function(
 			 )
 			 ft<-rbind(ft, x)
 		}
-		write.csv(ft, "DataFileAnnotations.csv", row.names=F)
+		write.csv(ft, filename, row.names=F)
 	}
 	return(ft)
 }
@@ -113,9 +113,9 @@ hc_buildDataFrame<-function(ds, ft, idCol=1){
 
 # Annotate File Table with Group Information -- manually add annotations
 ft<-hc_getFileTable(dl)
-ds<-hc_loadHtSeqFiles(ft)
-ft<-hc_identifierConsistencyHtSeq(ds, ft)
-raw<-hc_buildHtSeqDataFrame(ds, ft)
+ds<-hc_loadFiles(ft)
+ft<-hc_identifierConsistency(ds, ft)
+raw<-hc_buildDataFrame(ds, ft)
 
 
 
