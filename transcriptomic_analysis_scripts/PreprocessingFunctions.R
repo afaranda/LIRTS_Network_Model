@@ -1,81 +1,75 @@
 ################################################################################
-# File: NormalizationFunctions.R											   #
+# File: NormalizationFunctions.R                                               #
 # Purpose: Implement various normalization strategies as functions. Each       #
 #          function takes a count matrix as input and returns a matrix of      #
 #          normalized counts                                                   #
-# Created: April 30, 2019 													   #
-# Author: Adam Faranda														   #
+# Created: April 30, 2019                                                      #
+# Author: Adam Faranda                                                         #
 ################################################################################
 library(edgeR)
 library(sva)
 
-# Get the position(s) (column number) of (a) column(s) by name from a data frame
+# Get the position(s) (column number) of (a) column(s) by name from a data matrix
 colNum<-function(df, n){
 	positions<-c()
 	for(i in n){
 		positions<-c(
 			positions,
-			grep(i, names(df))
+			grep(i, colnames(df))
 		)
 	}
 	positions
 }
 
-# Basic Counts Per Million -- for each sample, divide each count by the sample's
-# total library size
-basicCPM<-function(x, idCol=1){
-	idCol<-ifelse(is.character(idCol), colNum(x, idCol), idCol)
-	cs<-colSums(x[,setdiff(1:ncol(x), idCol)])
-	for (i in setdiff(1:ncol(x), idCol)){
-		x[,i]<-(x[,i] / cs[i-1]) * 1000000
+# Basic Counts Per Million -- Given a matrix of counts where columns are 
+# samples and rows are genes. for each sample, divide each count by the 
+# sample's total library size.
+
+basicCPM<-function(x){
+	cs<-colSums(x)
+	for (i in 1:ncol(x)){
+		x[,i]<-(x[,i] / cs[i]) * 1000000
 	}
 	x
 } 
 
 # Wrapper for EdgeR's cpm function, transforms to log2 to add prior count
 # then back to cpm (prior only works when log=T).
-edgeRcpm<-function(x, idCol=1, prior=2){
-	idCol<-ifelse(is.character(idCol), colNum(x, idCol), idCol )
-	row.names(x)<-x[,idCol]
-	
+edgeRcpm<-function(x, prior=2){
 	y<-DGEList(
-		counts = x[,setdiff(1:ncol(x), idCol)],
+		counts = x,
 		genes = row.names(x)
 	)
 	y<-calcNormFactors(y)
-	x<-as.data.frame(2^cpm(y, prior.count=prior, log=T))
+	x<-2^cpm(y, prior.count=prior, log=T)
 	print(head(x))
-	x['ID']<-row.names(x)
-	row.names(x)<-1:nrow(x)
-	n<-ncol(x)
-	x[,c(n, 1:(n-1))]
+	x
 }
 
 # Simple variance filter -- take the top n or % rows of a matrix based on
 # overall variance.  Assumes Column 1 is an ID column.
 varianceFilter<-function(
-df, idCol=1, threshold=10,
+mat, threshold=10,
 mode='absolute', decreasing=T
 
 ){
-    idCol<-ifelse(is.character(idCol), colNum(df, idCol), idCol)
-    df$TotalVar <-apply(df[,setdiff(1:ncol(x), idCol)], 1, var, na.rm=T)
-    tvCol<-grep('TotalVar', names(df))
+    mat<-cbind(mat, apply(mat, 1, var, na.rm=T))
     if(!mode %in% c('absolute', 'percent')){
         print("threshold mode must be 'absolute' or 'percent'")
         return(NULL)
     }
     else if(mode == 'absolute'){
-        threshold <- ifelse(threshold <=nrow(df), threshold, nrow(df))
-        return(df[order(df$TotalVar, decreasing=decreasing),][1:threshold, -tvCol])
+        threshold <- ifelse(threshold <=nrow(mat), threshold, nrow(mat))
+        return(mat[order(mat[,ncol(mat)], decreasing=decreasing),][1:threshold, -ncol(mat)])
     }
     else if(mode == 'percent'){
         threshold<-ifelse(0 < threshold,
         ifelse(threshold <= 100, threshold, 100),
         100
         )
-        n<-round((threshold * nrow(df))/100)
-        return(df[order(df$TotalVar, decreasing=decreasing),][1:n, -tvCol])
+        n<-round((threshold * nrow(mat))/100)
+        print(n)
+        return(mat[order(mat[,ncol(mat)], decreasing=decreasing),][1:n, -ncol(mat)])
     }
 }
 
@@ -85,30 +79,29 @@ mode='absolute', decreasing=T
 # Simple standard dev filter -- take the top n or % rows of a matrix based on
 # overall standard deviation  Assumes Column 1 is an ID column.
 stdevFilter<-function(
-df, idCol=1, threshold=10,
-mode='absolute', decreasing=T
-
+  mat, threshold=10,
+  mode='absolute', decreasing=T
 ){
-    idCol<-ifelse(is.character(idCol), colNum(x, idCol), idCol)
-    df$TotalVar <-apply(df[,setdiff(1:ncol(x), idCol)], 1, sd, na.rm=T)
-    tvCol<-grep('TotalVar', names(df))
-    if(!mode %in% c('absolute', 'percent')){
-        print("threshold mode must be 'absolute' or 'percent'")
-        return(NULL)
-    }
-    else if(mode == 'absolute'){
-        threshold <- ifelse(threshold <=nrow(df), threshold, nrow(df))
-        return(df[order(df$TotalVar, decreasing=decreasing),][1:threshold, -tvCol])
-    }
-    else if(mode == 'percent'){
-        threshold<-ifelse(0 < threshold,
-        ifelse(threshold <= 100, threshold, 100),
-        100
-        )
-        n<-round((threshold * nrow(df))/100)
-        return(df[order(df$TotalVar, decreasing=decreasing),][1:n, -tvCol])
-    }
+  mat<-cbind(mat, apply(mat, 1, stdev, na.rm=T))
+  if(!mode %in% c('absolute', 'percent')){
+    print("threshold mode must be 'absolute' or 'percent'")
+    return(NULL)
+  }
+  else if(mode == 'absolute'){
+    threshold <- ifelse(threshold <=nrow(mat), threshold, nrow(mat))
+    return(mat[order(mat[,ncol(mat)], decreasing=decreasing),][1:threshold, -ncol(mat)])
+  }
+  else if(mode == 'percent'){
+    threshold<-ifelse(0 < threshold,
+                      ifelse(threshold <= 100, threshold, 100),
+                      100
+    )
+    n<-round((threshold * nrow(mat))/100)
+    print(n)
+    return(mat[order(mat[,ncol(mat)], decreasing=decreasing),][1:n, -ncol(mat)])
+  }
 }
+
 
 
 # Combat correct (sva) -- assumes all, or all but one columns are expression

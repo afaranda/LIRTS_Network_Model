@@ -18,7 +18,7 @@ library(ballgown)
 library(rtracklayer)
 
 #################################################################################
-#   Function to tabulate gene and transcript lengths (exon union) from gtf     #
+#   Function to tabulate gene and transcript lengths (exon union) from gtf      #
 #################################################################################
 gtfpath<-"/home/adam/Documents/LTS_Data/Mus_musculus.GRCm38.96.chr.gtf"
 orig_gtf<-readGFF(gtfpath)
@@ -355,7 +355,7 @@ st_buildGeneMatrix<-function(ds, g_idCol=9, measCol=14){
   list(ft, dm)
 }
 
-ftt<-st_getFileTable(dl, wd=".")
+ftt<-st_getFileTable(dll, wd=".")
 sta<-st_loadFiles(ftt, fnCol=3)
 stg<-st_loadFiles(ftt, fnCol=4)
 bg<-st_sewBallGown(dl)
