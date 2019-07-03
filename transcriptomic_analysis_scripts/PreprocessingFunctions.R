@@ -1,5 +1,5 @@
 ################################################################################
-# File: NormalizationFunctions.R                                               #
+# File: PreprocessingFunctions.R                                               #
 # Purpose: Implement various normalization strategies as functions. Each       #
 #          function takes a count matrix as input and returns a matrix of      #
 #          normalized counts                                                   #
@@ -46,6 +46,61 @@ edgeRcpm<-function(x, prior=2){
 	x
 }
 
+# Normalize a count matrix to account TPM or FPKM based on Exon Union length
+# Optionally account for read lengths and paired / single endedness
+normGeneLength<-function(
+  mat,                    # Count matrix to normalize
+  ft = ft,                # File table with th sample metadata
+  ft_id = "Sample",       # Name of column in "ft" listing sample ID's     
+  gt = genes,             # Table of gene metadata
+  gt_id = "gene_id",      # Name of column gt listing gene ID's
+  gt_ln = "Union_Length", # Name of column listing gene lengths
+  TPM = T,                # If true calculate TPM, otherwise FPKM
+  ReadLen = NULL,         # If not null, Column in "ft" with Read Lengths  
+  Paired  = NULL          # If not null, Column in "ft" paired vs single
+) {
+  if(TPM){
+    norm<-function(x, s){
+      rl <- 0
+      gt$l <-gt[,gt_ln]
+      if(!is.null(ReadLen)){
+        rl<-ft[ft[,ft_id] == s, ReadLen]
+        if(!is.null(Paired)){
+          rl<- rl * ifelse(ft[ft[,ft_id] == s, ReadLen], 2, 1) 
+        }
+        gt$l<-gt$l - rl + 1
+      }
+      tpm <- x / gt$l
+      tpm <- (tpm * 10^6)/sum(tpm)
+      tpm
+    }
+    for(s in colnames(mat)){
+      mat[,s]<-norm(mat[,s], s)
+    }
+    return(mat)
+  } else {
+    norm<-function(x, s){
+      rl <- 0
+      gt$l <-gt[,gt_ln]
+      if(!is.null(ReadLen)){
+        rl<-ft[ft[,ft_id] == s, ReadLen]
+        if(!is.null(Paired)){
+          rl<- rl * ifelse(ft[ft[,ft_id] == s, ReadLen], 2, 1) 
+        }
+        gt$l<-gt$l - rl + 1
+      }
+      rpkm <- x / gt$l
+      rpkm <- (rpkm * 10^9) /sum(x)
+      rpkm
+    }
+    for(s in colnames(mat)){
+      mat[,s]<-norm(mat[,s], s)
+    }
+    return(mat)
+  }
+}
+
+# 
 # Simple variance filter -- take the top n or % rows of a matrix based on
 # overall variance.  Assumes Column 1 is an ID column.
 varianceFilter<-function(
@@ -232,6 +287,8 @@ edgeRPairwise<-function(
 }
 
 
+# Function receives a matrix of expression values.  For each row,
+# subtract the row mean and divide by the row standard deviation
 scaleCenterByRow<-function(mat){
 	a<-apply(mat, 1, mean, na.rm=T)
 	s<-apply(mat, 1, sd, na.rm=T)
