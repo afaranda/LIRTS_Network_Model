@@ -150,9 +150,9 @@ reshapeClusterTable<-function(mat, ktable, k, ft, transpose=F){
 	names(x)[grep('variable', names(x))]<-'Sample'
 
 	# Join Feature Table values on Sample
-	x$Class <-droplevels(sapply(x$Sample, function(s) ft[ft$Sample_Number == s, 'Class']))
-	x$Hours_PCS <-as.numeric(sapply(x$Sample, function(s) ft[ft$Sample_Number == s, 'Hours_PCS']))
-	x$Lab <-droplevels(sapply(x$Sample, function(s) ft[ft$Sample_Number == s, 'Seq_Lab']))
+	x$Class <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Class'])))
+	x$Hours_PCS <-as.numeric(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Hours_PCS'])))
+	x$Lab <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Lab'])))
 	x
 }
 
@@ -186,14 +186,15 @@ randIndex<-function(df, instanceCol=1, clusterCol=2, classCol=3){
 
 summarizeSampleClusters<-function(data=ecpm, distm, linkm, v=50, label='ecpm'){
 data<-varianceFilter(data, threshold=v)
-row.names(data)<-data$ID
+#row.names(data)<-data$ID
 	for(d in distm){
 		for(l in linkm){
 			f1<-paste(label,'_Samples_Top_', v,'_',d,'_',l,'_cluster.png')
-			mat<-data[,2:19]
+			mat<-data[,1:18]
 			h1<-wrapHclust(mat, 
 				idCol=0, transpose=T, d.meth=d, h.method = l
 			)
+			print(h1)
 			kt1<-tabulate_H_Clusters(h1, ks = trees)
 			kt1$I<-row.names(kt1)
 			kt1$TC<-sapply(kt1$I, function(i) ft[ft$Sample_Number ==i, 'Class'])

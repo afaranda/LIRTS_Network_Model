@@ -59,6 +59,7 @@ normGeneLength<-function(
   ReadLen = NULL,         # If not null, Column in "ft" with Read Lengths  
   Paired  = NULL          # If not null, Column in "ft" paired vs single
 ) {
+  mat<-as.data.frame(mat)
   if(TPM){
     norm<-function(x, s){
       rl <- 0
@@ -75,6 +76,7 @@ normGeneLength<-function(
       tpm
     }
     for(s in colnames(mat)){
+      print(s)
       mat[,s]<-norm(mat[,s], s)
     }
     return(mat)
@@ -94,6 +96,7 @@ normGeneLength<-function(
       rpkm
     }
     for(s in colnames(mat)){
+      print(s)
       mat[,s]<-norm(mat[,s], s)
     }
     return(mat)

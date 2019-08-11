@@ -196,7 +196,17 @@ buildDGE<-function(mat, ft=ft, ft_id="sample", gt=gt, gt_id="gene_id"){
   }
 }
 
-
+# Drop HTSeq-Samples
+hc_dropSamples<-function(mat, ft=ft, id_col=1,samples=c()){
+  ft<-ft[!(ft[,id_col] %in% samples),]
+  s<-ft[,id_col] 
+  mat<-mat[,s]
+  if(!any(colnames(mat)!= ft$sample)){
+    return(list(ft, mat))
+  } else {
+    print("Column Matching Error")
+  }
+}
 #################################################################################
 #           Functions to build string-tie based matrices (TPM)                  #
 #################################################################################
@@ -408,7 +418,7 @@ st_buildGeneMatrix<-function(ds, g_idCol=9, measCol=14){
 #   gn_len,
 #   check,
 #   by="gene_id"
-# ) %>% 
+# ) %>%   
 #   mutate(ck=abs(Union_Exons - Ex)) %>%
 #   summarize(sum(ck))
 

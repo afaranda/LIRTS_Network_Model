@@ -39,7 +39,12 @@ ft<-hc_getFileTable(dirList=dl)
 ds<-hc_loadFiles(ft)
 ft<-hc_identifierConsistency(ds, ft)
 htseq_count<-hc_buildDataFrame(ds, ft)
-htseq_dge<-buildDGE(htseq_count[[2]], ft=ft, 
+htseq_count<-hc_dropSamples(
+  ft = htseq_count[[1]],
+  mat = htseq_count[[2]],
+  samples = ft[ft$Genotype !="WT", 1]
+)
+htseq_dge<-buildDGE(htseq_count[[2]], ft=htseq_count[[1]], 
                     gt=data.frame(lt %>% 
                                     group_by(gene_id) %>% 
                                     summarise(Union_Length = dplyr::first(Union_Length)
@@ -72,39 +77,47 @@ ft$Class<-factor(
 		as.character(ft$Class[order(ft$Hours_PCS)])
 	)
 )
+mat<-htseq_count[[2]]
+genes<-lt %>% group_by(gene_id) %>% filter(row_number()==1)
 
-
-counts<-(raw[[2]][6:nrow(raw[[2]]),])      # Extract Raw Counts
-ecpm<-edgeRcpm(counts)                     # Normalize using edgeR's TMM method
-ecmb<-wrapCombat_intOnly(ecpm, ft)         # Correct for batch effects
-ecmb<-fixCombatNegatives(ecmb)             # replace negative values with min +ve
-
+ecpm<-edgeRcpm(mat)                     # Normalize using edgeR's TMM method
+etpm<-normGeneLength(ft=ft, mat=mat, gt=genes)
+ecmb<-wrapCombat(ecpm, ft, groupCol = 9, batchCol = 6, idCol = 0)# Correct for batch effects
+ecmb<-fixCombatNegatives(ecmb, idCol=0)             # replace negative values with min +ve
+etpm[etpm==0]<-0.0001
+etmb<-ComBat(
+  dat=as.matrix(etpm), 
+  batch=ft$Lab,
+  mod = model.matrix(~1, ft)
+)
+etmb<-fixCombatNegatives(etmb, idCol =0)
 
 ############## Apply Variance Filters; Plot Principal Components ###############
-varRanks <-c(10, 50, 100, 200)                # Try different variance filters
+varRanks <-c(10, 50, 100, 10000)                # Try different variance filters
 for( v in varRanks){
 	print(v)
-	ecpm.filter <-varianceFilter(ecpm, threshold=v)
-	ecmb.filter <-varianceFilter(ecmb, threshold=v)
+	ecpm.filter <-varianceFilter(etpm, threshold=v)
+	ecmb.filter <-varianceFilter(etmb, threshold=v)
 	
 	# Plot results for TMM Normalized Data
 	f1<-paste('ECPM_Samples_Top_', v,'_Ranked_Class.png')
 	f2<-paste('ECPM_Samples_Top_', v,'_Ranked_Lab.png')
 	png(f1, width=240, height=150)
-		print(plotPrinComp(ecpm.filter, ft, groupCol=8, idCol=1))
+		print(plotPrinComp(ecpm.filter, ft, groupCol=9, idCol=0))
 	dev.off()
+	
 	png(f2, width=240, height=150)
-		print(plotPrinComp(ecpm.filter, ft, groupCol=4, idCol=1))
+		print(plotPrinComp(ecpm.filter, ft, groupCol=6, idCol=0))
 	dev.off()
 
 	# Plot results for batch adjusted TMM data
 	f1<-paste('ECMB_Samples_Top_', v,'_Ranked_Class.png')
 	f2<-paste('ECMB_Samples_Top_', v,'_Ranked_Lab.png')
 	png(f1, width=240, height=150)
-		print(plotPrinComp(ecmb.filter, ft, groupCol=8, idCol=1))
+		print(plotPrinComp(ecmb.filter, ft, groupCol=9, idCol=0))
 	dev.off()
 	png(f2, width=240, height=150)
-		print(plotPrinComp(ecmb.filter, ft, groupCol=4, idCol=1))
+		print(plotPrinComp(ecmb.filter, ft, groupCol=6, idCol=0))
 	dev.off()
 }
 
@@ -132,15 +145,17 @@ write.csv(clustStats, 'Sample_Cluster_Statistics.csv')
 
 ################# Analyze Gene Clusters at Variance Threshold ####################
 v = 200
-ecmb.filter<-varianceFilter(ecmb, threshold=v)
-mat<-as.matrix(ecmb.filter[,2:ncol(ecmb.filter)])
+mat<-varianceFilter(etmb, threshold=v)
 mat.l<-log(mat)
 mat.s<-scaleCenterByRow(mat)
 
 d.meth='manhattan'
 h.method='complete'
+h<-wrapHclust(mat.s, idCol=0, transpose = F)
+ktable<-tabulate_H_Clusters(h)
+rt<-reshapeClusterTable(mat.s, ktable, 5, ft=ft)
 
-summarizeGeneClusters(mat.s, label='Scaled_Centered_v200')
+summarizeGeneClusters(mat.s, label='Scaled_Centered_v200', nclust=5)
 
 
 v = 2000
@@ -148,8 +163,8 @@ ecmb.filter<-varianceFilter(ecmb, threshold=v)
 mat<-as.matrix(ecmb.filter[,2:ncol(ecmb.filter)])
 mat.l<-log(mat)
 mat.s<-scaleCenterByRow(mat)
-summarizeGeneClusters(mat.s, label='Scaled_Centered_v200')
-
+summarizeGeneClusters(mat.s, label='Scaled_Centered_v2000')
+dev.
 
 
 
