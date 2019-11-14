@@ -5,6 +5,9 @@
 #          matrix                                                               #
 # Created: April 30, 2019                                                       #
 # Changes:                                                                      #
+#         November 2019                                                         #
+#          - Replaced Function that estimates exon-union lengths from a gtf     #
+#                                                                               #
 #         June 2019                                                             #
 #          - Add functionality for processing StringTie results                 #
 #          - update function names to distinguish htseq methods from stringtie  #
@@ -14,6 +17,7 @@
 # Author: Adam Faranda                                                          #
 #################################################################################
 library(dplyr)
+library(data.table)
 library(ballgown)
 library(rtracklayer)
 
@@ -21,31 +25,57 @@ library(rtracklayer)
 #   Function to tabulate gene and transcript lengths (exon union) from gtf      #
 #################################################################################
 # Given the path to a GTF File return a table of gene / transcript exon-union 
-# lengths.  This takes a very long time to run. 
-lengthTable<-function(gtfpath){
-  orig_gtf<-readGFF(gtfpath)
-  
-  xs_len<-orig_gtf %>%
-    mutate( length = abs(start - end) + 1) %>% 
-    filter( type == "exon") %>% 
-    group_by(transcript_id) %>%
-    summarise(gene_id = unique(gene_id), Xscript_Exons = n(), Xscript_Length=sum(length))
-  
-  gn_len<-orig_gtf %>%
-    mutate( length = abs(start - end) + 1) %>% 
-    filter( type == "exon" & !duplicated(exon_id)) %>% 
-    group_by(gene_id) %>%
-    summarise( Union_Exons = n(), Union_Length=sum(length))
-  
-  as.data.frame(
-    lenTable<-inner_join(
-      xs_len, 
-      gn_len,
-      by ="gene_id"
-    ),
-    stringsAsFactors=F
-  )
+# lengths.  This takes a long time to run. The output is a two column tab
+# separated table of gene id's and corresponding exon-union lengths
+
+
+gene_coding_length<-function(g){
+    g<-g[g$type == 'exon', c()]
+    ir<-ranges(g)
+    return(sum(coverage(reduce(ir))))
 }
+
+
+gtf_coding_length<-function(
+    gtf=import.gff('Mus_musculus.GRCm38.98.gtf'),             # imported GTF File
+    out=gene_coding_lengths.txt,    # Name to write table of gene_ids and lengths
+    idCol='gene_id'                 # Name of attribute storing gene_ids
+){
+    # Set ID Column to "gene_id" if not already the case
+    if(idCol != "gene_id" & !("gene_id" %in% names(mcols(gtf)))){
+        names(
+            mcols(gtf)
+        )[
+            grep(paste("^",idCol,"$",sep=""), names(mcols(gtf)))
+         ] <-"gene_id"
+    } else if(idCol !="gene_id" & "gene_id" %in% names(mcols(gtf))){
+        print("Check gene identifier in GTF File")
+	return(NULL)
+    }
+    
+    print(paste("All Features:", length(gtf)))
+    gtx<-gtf[gtf$type=='exon']
+    print(paste("Exons:", length(gtx)))
+    
+    union_length<-data.frame()
+    for(g in unique(gtf$gene_id)){
+        union_length<-rbind(
+            union_length,
+ 	    data.frame(
+	        gene_id = g,
+	        coding_length = gene_coding_length(gtx[gtx$gene_id == g])
+	    )
+        )
+	
+    }
+    write.table(union_length, file=out, sep="\t", quote=F, row.names=F)
+    return(union_length)
+}
+
+gtf_annot<-function(gtf, type='gene'){
+  gtf<-as.data.frame(mcols(gtf)[gtf$type == type])
+}
+
 
 #################################################################################
 #                 Functions to build HTSeq-Count Matrices                       #
@@ -81,7 +111,7 @@ hc_getFileTable <-function(
 			 )
 			 ft<-rbind(ft, x)
 		}
-		#write.csv(ft, filename, row.names=F)
+		write.csv(ft, filename, row.names=F)
 	}
 	return(ft)
 }
