@@ -28,7 +28,6 @@ library(rtracklayer)
 # lengths.  This takes a long time to run. The output is a two column tab
 # separated table of gene id's and corresponding exon-union lengths
 
-
 gene_coding_length<-function(g){
     g<-g[g$type == 'exon', c()]
     ir<-ranges(g)
@@ -91,7 +90,8 @@ hc_getFileTable <-function(
 	filename="HtSeq_GeneCountFiles.csv"
 ){
 	if(filename %in% list.files(wd)){
-		ft<-read.csv(filename, stringsAsFactors = F)
+	  fn = paste(wd, filename, sep="/")
+		ft<-read.csv(fn, stringsAsFactors = F)
 	} 
 	else{
 		ft<-data.frame(
@@ -111,7 +111,8 @@ hc_getFileTable <-function(
 			 )
 			 ft<-rbind(ft, x)
 		}
-		write.csv(ft, filename, row.names=F)
+		fn = paste(wd, filename, sep="/")
+		write.csv(ft, fn, row.names=F)
 	}
 	return(ft)
 }
@@ -151,7 +152,7 @@ hc_identifierConsistency<-function(ds, ft, idCol=1){
 }
 
 # Join count data columns into a matrix
-hc_buildDataFrame<-function(ds, ft, idCol=1, measCol=2){
+hc_buildDataFrame<-function(ds, ft, idCol=1, measCol=2, return_matrix=T){
 	df<-data.frame(Ensembl=ds[[1]][,idCol], stringsAsFactors=F)
 	for( i in 1:nrow(ft)){
 		if(!any(df$Ensembl != ds[[ft[i,1]]][,idCol])){
@@ -169,8 +170,11 @@ hc_buildDataFrame<-function(ds, ft, idCol=1, measCol=2){
 	df<- df %>% filter(!grepl("__",Ensembl))
 	row.names(df)<-df$Ensembl
 	df<-df[order(df[,"Ensembl"]),]
-	dm<-as.matrix(df[,!grepl("Ensembl", names(df))])
-	list(ft, dm)
+	if(return_matrix){
+	 return(as.matrix(df[,!grepl("Ensembl", names(df))]))
+	} else {
+	  return(df[,!grepl("Ensembl", names(df))])
+	}
 }
 
 # Compile expression data into a DGE list
