@@ -1,0 +1,25 @@
+"sample","directory","filename","batch","genotype","hours pcs"
+"1_S1","~/Documents/LEC_Time_Series_HTSeq_Counts","1_S1_GeneCount.txt","DBI","WT",0
+"2_S2","~/Documents/LEC_Time_Series_HTSeq_Counts","2_S2_GeneCount.txt","DBI","WT",0
+"4_S3","~/Documents/LEC_Time_Series_HTSeq_Counts","4_S3_GeneCount.txt","DBI","WT",0
+"6_S4","~/Documents/LEC_Time_Series_HTSeq_Counts","6_S4_GeneCount.txt","DBI","WT",24
+"7_S5","~/Documents/LEC_Time_Series_HTSeq_Counts","7_S5_GeneCount.txt","DBI","WT",24
+"8_S6","~/Documents/LEC_Time_Series_HTSeq_Counts","8_S6_GeneCount.txt","DBI","WT",24
+"9_S7","~/Documents/LEC_Time_Series_HTSeq_Counts","9_S7_GeneCount.txt","DBI","WT",48
+"10_S8","~/Documents/LEC_Time_Series_HTSeq_Counts","10_S8_GeneCount.txt","DBI","WT",48
+"11_S9","~/Documents/LEC_Time_Series_HTSeq_Counts","11_S9_GeneCount.txt","DBI","WT",48
+"W_0_hr_1_S256","~/Documents/LEC_Time_Series_HTSeq_Counts","W_0_hr_1_S256_GeneCount.txt","DNA2","WT",0
+"W_0_hr_2_S257","~/Documents/LEC_Time_Series_HTSeq_Counts","W_0_hr_2_S257_GeneCount.txt","DNA2","WT",0
+"W_0_hr_3_S258","~/Documents/LEC_Time_Series_HTSeq_Counts","W_0_hr_3_S258_GeneCount.txt","DNA2","WT",0
+"W_5_D_1_S259","~/Documents/LEC_Time_Series_HTSeq_Counts","W_5_D_1_S259_GeneCount.txt","DNA2","WT",120
+"7_S261","~/Documents/LEC_Time_Series_HTSeq_Counts","7_S261_GeneCount.txt","DNA2","WT",120
+"W_5_D_3_S260","~/Documents/LEC_Time_Series_HTSeq_Counts","W_5_D_3_S260_GeneCount.txt","DNA2","WT",120
+"WT_0_hr_1_S1","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_0_hr_1_S1_GeneCount.txt","DNA1","WT",0
+"WT_0_hr_2_S2","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_0_hr_2_S2_GeneCount.txt","DNA1","WT",0
+"WT_0_hr_3_S3","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_0_hr_3_S3_GeneCount.txt","DNA1","WT",0
+"WT_6_hr_1_S4","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_6_hr_1_S4_GeneCount.txt","DNA1","WT",6
+"WT_6_hr_2_S5","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_6_hr_2_S5_GeneCount.txt","DNA1","WT",6
+"WT_6_hr_3_S15","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_6_hr_3_S15_GeneCount.txt","DNA1","WT",6
+"WT_24_hr_1_S6","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_24_hr_1_S6_GeneCount.txt","DNA1","WT",24
+"WT_24_hr_2_S7","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_24_hr_2_S7_GeneCount.txt","DNA1","WT",24
+"WT_24_hr_3_S8","~/Documents/LEC_Time_Series_HTSeq_Counts","WT_24_hr_3_S8_GeneCount.txt","DNA1","WT",24

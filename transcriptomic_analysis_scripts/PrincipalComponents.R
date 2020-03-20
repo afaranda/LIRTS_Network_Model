@@ -35,8 +35,8 @@ plotPrinComp<-function(df, ft, idCol=1, groupCol=3, transpose=T, legendTitle="")
         df<-t(df)
     }
     pca<-prcomp(df, scale=T)
-    p<-autoplot(pca, data = ft, colour=groupCol)
-    p + labs(colour=legendTitle)
+    p<-autoplot(pca, data = ft, colour=groupCol, size=3)
+    p<-p + labs(colour=legendTitle) + theme(text = element_text(size=20))
     p
     
 }

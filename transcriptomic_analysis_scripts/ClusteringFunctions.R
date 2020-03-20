@@ -150,9 +150,9 @@ reshapeClusterTable<-function(mat, ktable, k, ft, transpose=F){
 	names(x)[grep('variable', names(x))]<-'Sample'
 
 	# Join Feature Table values on Sample
-	x$Class <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Class'])))
-	x$Hours_PCS <-as.numeric(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Hours_PCS'])))
-	x$Lab <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Lab'])))
+  x$Class <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Class'])))
+  x$Hours_PCS <-as.numeric(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Hours_PCS'])))
+  x$Lab <-droplevels(sapply(x$Sample, function(s) as.factor(ft[ft$sample == s, 'Lab'])))
 	x
 }
 

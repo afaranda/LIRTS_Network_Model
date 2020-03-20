@@ -7,9 +7,12 @@
 
 ############################ Setup Environment #################################
 setwd('/home/adam/Documents/LEC_Time_Series')
+#load("GeneLengthTable.Rdata")
 library(dplyr)
 library(cluster)
 library(reshape2)
+library(pheatmap)
+
 wd<-getwd()
 source('transcriptomic_analysis_scripts/BuildDataMatrix.R')
 source('transcriptomic_analysis_scripts/PreprocessingFunctions.R')
@@ -18,153 +21,188 @@ source('transcriptomic_analysis_scripts/ClusteringFunctions.R')
 
 ############################ Load in Data Files ################################
 
-gtfpath<-"/home/adam/Documents/LTS_Data/Mus_musculus.GRCm38.96.chr.gtf"
-orig_gtf<-readGFF(gtfpath)
+dl<-"~/Documents/LEC_Time_Series_HTSeq_Counts"
 
-# Manually Annotate the File Table tf wisth the followieng data:
-#               Group Information: Genotype, Time Point,  Sequencing Lab
-#               Read Information: Average Length, library type (paired / single)
+# ft<-hc_getFileTable(
+#   dirList=dl, filename = "HTSeq_GeneCounts_All.csv"
+# )
 
-dl<-c(
-  "/home/adam/Documents/LTS_Data/DBI_NoTrim_HTSeq_Count_Gene", 
-  "/home/adam/Documents/LTS_Data/DNA_Link_NoTrim_HTSeq_Count_Gene"
-)
+# ft<-hc_getFileTable(
+#   dirList=dl, filename = "HTSeq_GeneCounts_Wildtype.csv"
+# )
 
-if(length(list.files(pattern = "GeneLengthTable.Rdata"))>0){
-  load("GeneLengthTable.Rdata")
-} else {
-  lt<-lengthTable(gtfpath)
-}
-ft<-hc_getFileTable(dirList=dl)
 ds<-hc_loadFiles(ft)
 ft<-hc_identifierConsistency(ds, ft)
+
+library('AnnotationHub')
+lt<-read.table(
+  paste(dl,"gene_coding_lengths.txt", sep='/'),
+  header = T, stringsAsFactors = F
+)
+ah<-AnnotationHub()
+# Run Query to find proper Annotation Set:
+#AnnotationHub::query(ah, pattern=c("EnsDb", "Mus musculus", "98"))
+edb<-ah[['AH75036']]
+lt<-merge(
+  lt, AnnotationDbi::select(
+    edb, keys=lt$gene_id, 
+    columns = c("SYMBOL", "DESCRIPTION"), 
+    keytype = "GENEID"
+  ),
+  by.x = 'gene_id', by.y='GENEID'
+)
+row.names(lt)<-lt$gene_id
+rm(ah, edb)
+detach(package:AnnotationHub, unload=T)
+detach(package:ensembldb, unload=T)
+detach(package:AnnotationFilter, unload=T)
+
+# Setup an edgeR DGE List to keep everything organized
 htseq_count<-hc_buildDataFrame(ds, ft)
-htseq_count<-hc_dropSamples(
-  ft = htseq_count[[1]],
-  mat = htseq_count[[2]],
-  samples = ft[ft$Genotype !="WT", 1]
-)
-htseq_dge<-buildDGE(htseq_count[[2]], ft=htseq_count[[1]], 
-                    gt=data.frame(lt %>% 
-                                    group_by(gene_id) %>% 
-                                    summarise(Union_Length = dplyr::first(Union_Length)
-                                    )
-                    )
+
+dge<-DGEList(
+  htseq_count, 
+  samples=ft, 
+  genes=lt[row.names(htseq_count),]
 )
 
-# Import Stringtie Data
-dll<-c(
-  "/home/adam/Documents/LTS_Data/DBI_NoTrim_StringTie", 
-  "/home/adam/Documents/LTS_Data/DNA_Link_NoTrim_StringTie"
+# Reorder grouping factor, drop unused levels
+dge$samples$group<-droplevels(
+  factor(
+    paste(dge$samples$hours.pcs, 'H', sep=''),
+    levels = c('0H', '6H', '24H','48H', '120H')
+  )
 )
 
-ftt<-st_getFileTable(dll, wd=".")
-stg<-st_loadFiles(ftt, fnCol=4)
-bg<-st_sewBallGown(ftt)
-stringtie_tran_tpm<-st_buildTranscriptMatrix(ds=stg, idCol = 10, measCol = 14)
-stringtie_gene_tpm<-st_buildGeneMatrix(ds=stg, g_idCol=9, measCol = 14)
-ls()
+# Build design matrix with batch coveriate
+design<-model.matrix(~group + batch + genotype, dge$samples)
+odg<-dge
+dge<-dge[filterByExpr(dge),]
+dge$genes$Var<-apply(dge$counts, 1, var)
 
 
-######################### Apply Preprocessing Steps ############################
+# Get statistical significance
 
-# Add Class attribute to feature definition table
-ft<-htseq_count[[1]]
-ft$Class<-as.factor(paste("Hour",ft$Hours_PCS,sep=""))
-ft$Class<-factor(
-	ft$Class, 
-	levels=unique(
-		as.character(ft$Class[order(ft$Hours_PCS)])
-	)
-)
-mat<-htseq_count[[2]]
-genes<-lt %>% group_by(gene_id) %>% filter(row_number()==1)
+dge<-estimateCommonDisp(dge)
+dge<-estimateTagwiseDisp(dge)
+dge<-calcNormFactors(dge)
 
+# Calcuate Statistical Significance (Gene DE at ANY Timepoint)
+fit<-glmFit(dge, design)
+qlf<-glmLRT(fit, coef=2:5)
+deg<-as.data.frame(topTags(qlf, n=Inf))
+
+
+############# Generate Cpm Matrix for clustering ############################
+ 
+mat<-as.data.frame(dge$counts)
 ecpm<-edgeRcpm(mat)                     # Normalize using edgeR's TMM method
-etpm<-normGeneLength(ft=ft, mat=mat, gt=genes)
-ecmb<-wrapCombat(ecpm, ft, groupCol = 9, batchCol = 6, idCol = 0)# Correct for batch effects
-ecmb<-fixCombatNegatives(ecmb, idCol=0)             # replace negative values with min +ve
-etpm[etpm==0]<-0.0001
-etmb<-ComBat(
-  dat=as.matrix(etpm), 
-  batch=ft$Lab,
-  mod = model.matrix(~1, ft)
-)
-etmb<-fixCombatNegatives(etmb, idCol =0)
 
-############## Apply Variance Filters; Plot Principal Components ###############
-varRanks <-c(10, 50, 100, 10000)                # Try different variance filters
+
+
+############## Apply LogFC Filters; Plot Principal Components ###############
+varRanks <-c(10, 50, 100, 500)                # Try different variance filters
 for( v in varRanks){
 	print(v)
-	ecpm.filter <-varianceFilter(etpm, threshold=v)
-	ecmb.filter <-varianceFilter(etmb, threshold=v)
+	ecpm.filter <-varianceFilter(ecpm, threshold=v)
 	
-	# Plot results for TMM Normalized Data
-	f1<-paste('ECPM_Samples_Top_', v,'_Ranked_Class.png')
-	f2<-paste('ECPM_Samples_Top_', v,'_Ranked_Lab.png')
-	png(f1, width=240, height=150)
-		print(plotPrinComp(ecpm.filter, ft, groupCol=9, idCol=0))
+	# Plot results for TMM Normalized Data -- selected by variance
+	f1<-paste('ECPM_Samples_Top_', v,'_Variance_Class.png')
+	f2<-paste('ECPM_Samples_Top_', v,'_Variance_Lab.png')
+	f3<-paste('ECPM_Samples_Top_', v,'_Variance_Clusters.png')
+	png(f1, width=480, height=300)
+		print(plotPrinComp(ecpm.filter, dge$samples, groupCol=1, idCol=0))
 	dev.off()
 	
-	png(f2, width=240, height=150)
-		print(plotPrinComp(ecpm.filter, ft, groupCol=6, idCol=0))
+	png(f2, width=480, height=300)
+		print(plotPrinComp(ecpm.filter, dge$samples, groupCol=7, idCol=0))
 	dev.off()
-
-	# Plot results for batch adjusted TMM data
-	f1<-paste('ECMB_Samples_Top_', v,'_Ranked_Class.png')
-	f2<-paste('ECMB_Samples_Top_', v,'_Ranked_Lab.png')
-	png(f1, width=240, height=150)
-		print(plotPrinComp(ecmb.filter, ft, groupCol=9, idCol=0))
-	dev.off()
-	png(f2, width=240, height=150)
-		print(plotPrinComp(ecmb.filter, ft, groupCol=6, idCol=0))
+	
+	png(f3, width=1200, height = 800)
+	pheatmap(
+	  log(ecpm.filter), 
+	  annotation_col = dge$samples[,c('group', 'batch')],
+	  show_rownames = F, fontsize=20, cellwidth = 20
+	)
 	dev.off()
 }
 
-############ Analyze Sample Clusters at desired Variance Threshold #############
-distm <-c('euclidean', 'manhattan')			  # Try different distance methods
-linkm <-c('complete', 'average', 'single')    # Try different linkage methods
-trees <-c(1,2,3,4,5,6)                        # Different levels k
-v =200
-ecpm.filter<-varianceFilter(ecpm, threshold=v)
-ecmb.filter<-varianceFilter(ecmb, threshold=v)
+for( lfc in c(2, 5, 7)){
 
-
-
-clustStats<-rbind(
-	summarizeSampleClusters(
-		data=ecpm, distm=distm, linkm=linkm, v=v, label='ecpm'
-		
-	),
-	summarizeSampleClusters(
-		data=ecmb, distm=distm, linkm=linkm, v=v, label='ecmb'
+	# Get list of genes meeting key criteria
+	like<-as.character(
+	  (
+	    deg %>% 
+	      filter(logCPM > 2 & FDR < 0.05) %>%
+	      filter(
+	        abs(logFC.group6H) > lfc |
+	          abs(logFC.group24H) > lfc |
+	          abs(logFC.group48H) > lfc |
+	          abs(logFC.group120H) > lfc
+	      )
+	  )$gene_id
 	)
+	# Plot results selected by fold change level
+	f1<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Class.png')
+	f2<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Lab.png')
+	f3<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Clusters.png')
+	
+	png(f1, width=480, height=300)
+		print(plotPrinComp(ecpm[like,], dge$samples, groupCol=1, idCol=0))
+	dev.off()
+	png(f2, width=480, height=300)
+		print(plotPrinComp(ecpm[like,], dge$samples, groupCol=7, idCol=0))
+	dev.off()
+	
+	png(f3, width=1200, height = 800)
+	  pheatmap(
+	    log(ecpm[like,]), 
+	    annotation_col = dge$samples[,c('group', 'batch')],
+	    show_rownames = F, fontsize=20, cellwidth = 20
+	  )
+	dev.off()
+}
+
+# Write Result Tables
+htseq_count$gene_id <-row.names(htseq_count)
+write.table(
+  htseq_count, "Injury_Model_Raw_Counts_All_Genes.txt", row.names=F, 
+  sep = '\t', quote=F
 )
 
-write.csv(clustStats, 'Sample_Cluster_Statistics.csv')
+htseq_fpkm<-rpkm(odg)
+write.table(
+  htseq_fpkm, "Injury_Model_FPKM_All_Genes.txt", row.names=F, 
+  sep = '\t', quote=F
+)
 
-################# Analyze Gene Clusters at Variance Threshold ####################
-v = 200
-mat<-varianceFilter(etmb, threshold=v)
-mat.l<-log(mat)
-mat.s<-scaleCenterByRow(mat)
+# Filtered For Abundance: 
+# at least 10 reads in three samples, sum accross all samples at least 15
+# and at least 10 reads in 70% of samples in the smallest group
+ecpm$gene_id <-row.names(ecpm)
+write.table(
+  ecpm, "Injury_Model_TMM_Normalized_Present_Genes.txt", row.names=F, 
+  sep = '\t', quote=F
+)
 
-d.meth='manhattan'
-h.method='complete'
-h<-wrapHclust(mat.s, idCol=0, transpose = F)
-ktable<-tabulate_H_Clusters(h)
-rt<-reshapeClusterTable(mat.s, ktable, 5, ft=ft)
+write.table(
+  dge$samples, "Sample_Metadata.txt", row.names=F, 
+  sep = '\t', quote=F
+)
 
-summarizeGeneClusters(mat.s, label='Scaled_Centered_v200', nclust=5)
+write.table(
+  dge$genes, "Gene_Metadata.txt", row.names=F, 
+  sep = '\t', quote=F
+)
 
 
-v = 2000
-ecmb.filter<-varianceFilter(ecmb, threshold=v)
-mat<-as.matrix(ecmb.filter[,2:ncol(ecmb.filter)])
-mat.l<-log(mat)
-mat.s<-scaleCenterByRow(mat)
-summarizeGeneClusters(mat.s, label='Scaled_Centered_v2000')
-dev.
+
+
+
+
+
+
+
 
 
 
