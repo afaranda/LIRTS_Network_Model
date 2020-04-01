@@ -6,6 +6,8 @@
 ################################################################################
 
 ############################ Setup Environment #################################
+
+# CHANGE THIS DIRECTORY
 setwd('/home/adam/Documents/LEC_Time_Series')
 #load("GeneLengthTable.Rdata")
 library(dplyr)
@@ -21,14 +23,19 @@ source('transcriptomic_analysis_scripts/ClusteringFunctions.R')
 
 ############################ Load in Data Files ################################
 
+# CHANGE THIS DIRECTORY
 dl<-"~/Documents/LEC_Time_Series_HTSeq_Counts"
 
 # ft<-hc_getFileTable(
 #   dirList=dl, filename = "HTSeq_GeneCounts_All.csv"
 # )
 
+ft<-hc_getFileTable(
+  dirList=dl, filename = "HTSeq_GeneCounts_Wildtype.csv"
+)
+
 # ft<-hc_getFileTable(
-#   dirList=dl, filename = "HTSeq_GeneCounts_Wildtype.csv"
+#   dirList=dl, filename = "H TSeq_GeneCounts_Wildtype_0-48.csv"
 # )
 
 ds<-hc_loadFiles(ft)
@@ -75,17 +82,15 @@ dge$samples$group<-droplevels(
 )
 
 # Build design matrix with batch coveriate
-design<-model.matrix(~group + batch + genotype, dge$samples)
 odg<-dge
-dge<-dge[filterByExpr(dge),]
+dge<-dge[filterByExpr(dge), , keep.lib.sizes=FALSE]
 dge$genes$Var<-apply(dge$counts, 1, var)
-
+design<-model.matrix(~group + batch, dge$samples)
 
 # Get statistical significance
-
+dge<-calcNormFactors(dge)
 dge<-estimateCommonDisp(dge)
 dge<-estimateTagwiseDisp(dge)
-dge<-calcNormFactors(dge)
 
 # Calcuate Statistical Significance (Gene DE at ANY Timepoint)
 fit<-glmFit(dge, design)
@@ -101,7 +106,7 @@ ecpm<-edgeRcpm(mat)                     # Normalize using edgeR's TMM method
 
 
 ############## Apply LogFC Filters; Plot Principal Components ###############
-varRanks <-c(10, 50, 100, 500)                # Try different variance filters
+varRanks <-c(10, 50, 100, 250, 500)           # Try different variance filters
 for( v in varRanks){
 	print(v)
 	ecpm.filter <-varianceFilter(ecpm, threshold=v)
@@ -143,9 +148,10 @@ for( lfc in c(2, 5, 7)){
 	  )$gene_id
 	)
 	# Plot results selected by fold change level
-	f1<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Class.png')
-	f2<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Lab.png')
-	f3<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Clusters.png')
+	f1<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Class.png', sep='')
+	f2<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Lab.png', sep='')
+	f3<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Clusters.png', sep='')
+	f4<-paste('ECPM_Samples_logFC_', lfc,'_',length(like),'_Significant_genes_Matrix.txt', sep='')
 	
 	png(f1, width=480, height=300)
 		print(plotPrinComp(ecpm[like,], dge$samples, groupCol=1, idCol=0))
@@ -160,17 +166,28 @@ for( lfc in c(2, 5, 7)){
 	    annotation_col = dge$samples[,c('group', 'batch')],
 	    show_rownames = F, fontsize=20, cellwidth = 20
 	  )
+	  
+	  sym<-dge$genes$SYMBOL
+	  names(sym)<-dge$genes$gene_id
+	  
+	  mat<-as.data.frame(log(ecpm[like,]))
+	  mat$gene<-sym[rownames(mat)]
+	  mat<-mat[,c('gene', colnames(ecpm))]
+	  write.table(
+	    mat, f4, sep='\t', quote=F, row.names = F
+	  )
 	dev.off()
 }
 
 # Write Result Tables
+htseq_count<-as.data.frame(htseq_count)
 htseq_count$gene_id <-row.names(htseq_count)
 write.table(
   htseq_count, "Injury_Model_Raw_Counts_All_Genes.txt", row.names=F, 
   sep = '\t', quote=F
 )
 
-htseq_fpkm<-rpkm(odg)
+htseq_fpkm<-as.data.frame(rpkm(odg))
 write.table(
   htseq_fpkm, "Injury_Model_FPKM_All_Genes.txt", row.names=F, 
   sep = '\t', quote=F
@@ -179,6 +196,7 @@ write.table(
 # Filtered For Abundance: 
 # at least 10 reads in three samples, sum accross all samples at least 15
 # and at least 10 reads in 70% of samples in the smallest group
+ecpm<-as.data.frame(ecpm)
 ecpm$gene_id <-row.names(ecpm)
 write.table(
   ecpm, "Injury_Model_TMM_Normalized_Present_Genes.txt", row.names=F, 
@@ -194,13 +212,6 @@ write.table(
   dge$genes, "Gene_Metadata.txt", row.names=F, 
   sep = '\t', quote=F
 )
-
-
-
-
-
-
-
 
 
 
