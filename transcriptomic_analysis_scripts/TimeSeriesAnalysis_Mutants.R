@@ -39,6 +39,7 @@ lt<-read.table(
   paste(dl,"gene_coding_lengths.txt", sep='/'),
   header = T, stringsAsFactors = F
 )
+names(lt)[2]<-"length"
 
 ###################### Annotate Genes in table 'lt' ##########################
 ah<-AnnotationHub(localHub = T)
@@ -87,7 +88,7 @@ master$samples$genotype<-droplevels(
     levels = c('WT', 'FN', 'B8')
   )
 )
-
+save(master, file = "LTS_DGEList.Rdata")
 
 
 ######################## Analyze Complete Data Set ###########################
@@ -572,7 +573,9 @@ f3<-gsub('_genes.png','_Matrix.txt', f3)
 m<-as.data.frame(m)
 m$gene_id<-row.names(m)
 m<-m[,c('gene_id', setdiff(colnames(m), 'gene_id'))]
-
+write.table(
+  m, f3, sep="\t", quote=F, row.names = F
+)
 
 ####### Write Out Full Count and RPKM Tables, and Filtered CPM Tables ########
 

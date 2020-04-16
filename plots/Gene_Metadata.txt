@@ -1,4 +1,4 @@
-gene_id	coding_length	SYMBOL	DESCRIPTION	Var
+gene_id	length	SYMBOL	DESCRIPTION	Var
 ENSMUSG00000000001	3262	Gnai3	guanine nucleotide binding protein (G protein), alpha inhibiting 3 [Source:MGI Symbol;Acc:MGI:95773]	256661.47826087
 ENSMUSG00000000028	3506	Cdc45	cell division cycle 45 [Source:MGI Symbol;Acc:MGI:1338073]	19248.375
 ENSMUSG00000000031	2460	H19	H19, imprinted maternally expressed transcript [Source:MGI Symbol;Acc:MGI:95891]	6527.67391304348

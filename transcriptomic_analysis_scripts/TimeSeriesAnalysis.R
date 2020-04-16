@@ -93,8 +93,8 @@ dge<-estimateCommonDisp(dge)
 dge<-estimateTagwiseDisp(dge)
 
 # Calcuate Statistical Significance (Gene DE at ANY Timepoint)
-fit<-glmFit(dge, design)
-qlf<-glmLRT(fit, coef=2:5)
+fit<-glmQLFit(dge, design)
+qlf<-glmQLFTest(fit, coef=2:5)
 deg<-as.data.frame(topTags(qlf, n=Inf))
 
 
