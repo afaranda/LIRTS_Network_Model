@@ -121,7 +121,10 @@ for(c in 1:10){
 }
 
 ######################### Run A TMixClust Analysis ###########################
-ts_dat <- cpmByGroup(dge[colnames(datExpr),], group=dge$samples$interval)
+ts_dat <- cpmByGroup(
+  dge[colnames(datExpr),], 
+  group=dge$samples$interval, log=T
+)
 
 ts_clust_3 <-TMixClust(ts_dat, nb_clusters = 3)
 ts_clust_4 <-TMixClust(ts_dat, nb_clusters = 4)

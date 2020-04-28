@@ -13,7 +13,7 @@
 ##############################################################################
 
 ############################ Setup Environment ###############################
-
+  
 library(edgeR)
 library(WGCNA)
 setwd('/home/adam/Documents/LEC_Time_Series')
@@ -111,7 +111,8 @@ png(fn)
 par(mfrow = c(1,2));
 cex1 = 0.9;
 plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
-     xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     xlab="Soft Threshold (power)",
+     ylab="Scale Free Topology Model Fit,signed R^2",type="n",
      main = paste("Scale independence"));
 text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
      labels=powers,cex=cex1,col="red");
