@@ -1,0 +1,5 @@
+"","criteria","Total","Up","Down","contrast","test"
+"1","Statistically Significant",3607,2055,1552,"WT120vs0H","QLFTest"
+"2","Biologically Significant",2022,1176,846,"WT120vs0H","QLFTest"
+"3","Statistically Significant",3760,2123,1637,"WT120vs0H","Exact Test"
+"4","Biologically Significant",2048,1186,862,"WT120vs0H","Exact Test"
