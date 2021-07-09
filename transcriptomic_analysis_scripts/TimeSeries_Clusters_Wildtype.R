@@ -15,11 +15,11 @@ library(pheatmap)
 library(TMixClust)
 setwd('~/Documents/LEC_Time_Series')
 source('transcriptomic_analysis_scripts/ClusteringFunctions.R')
-min_lfc=4                                          # log fold change threshold
-min_cpm=0.50                                       # Minimum overall abundance
-max_cpm=20                                        # Maximum overall abundance
-  output_prefix="lfc4"                        # Prefix for output files
-dgeFile="LTS_DGEList.Rdata"                   # Rdata file with dgelist object
+min_lfc=3                                          # log fold change threshold
+min_cpm=1                                       # Minimum overall abundance
+max_cpm=10000                                        # Maximum overall abundance
+output_prefix="lfc0"                        # Prefix for output files
+dgeFile="LTS_DEG_Analysis_results/LTS_DGEList.Rdata"      # Rdata file with dgelist object
 
 ## Helper Function filters a count matrix by given criteria
 filterCPMmat<-function(
@@ -75,6 +75,11 @@ datExpr<-t(
   )
 )
 
+datStd <- sweep(datExpr, 2, apply(datExpr, 2, mean))
+datStd <- sweep(datStd, 2, apply(datExpr, 2, sd), FUN="/")
+
+
+
 # remove columns that hold information we do not need.
 allTraits = dge$samples[, -c(1,2,3,5,6,8,9,10,11)];
 row.names(allTraits)<-allTraits$sample
@@ -96,28 +101,43 @@ names(allTraits)<-gsub("interval", "", names(allTraits))
 
 ####################### Generate Heirarchical Clusters #######################
 
-h<-hclust(dist(t(datExpr), method = "manhattan"), method = 'complete' )
+h<-hclust(dist(t(datStd), method = "manhattan"), method = 'complete' )
 tab<-tabulate_H_Clusters(h,ks=c(1:10))
 
 #################### Generate Line Plots For Each Module #####################
 library(data.table)
 library(ggplot2)
-dt<-data.table(merge(datExpr, dge$samples, by='row.names'))
+dt<-data.table(merge(datStd, dge$samples, by='row.names'))
 for(c in 1:10){
   g<-row.names(tab[tab$k_eq_10 == c,])
   x<-melt(
     dt[,c(g, 'interval'),with=F][,lapply(.SD, mean), by=interval],
     id.vars = 'interval'
-  )
+  ) %>% rename(`Standardized log2 CPM`=value)
   fn<-paste(
     output_prefix,"Cluster_Number",
     c, "HClust_Lineplot.png",
     sep="_"
   )
   ttl<-paste("cluster", c, "size", length(g))
-  ggplot(x, aes(x=interval, y=value, color=variable, group=variable)) + 
-    geom_line() + theme(legend.position = 'none') + ggtitle(ttl)
-  ggsave(fn)
+  ggplot(
+    x, aes(x=interval, y=`Standardized log2 CPM`, color=variable, group=variable)
+  ) + 
+    geom_line() + theme(
+      legend.position = 'none',
+      axis.text = element_text(size=15),
+      axis.title = element_text(size=15)
+    ) + ggtitle(ttl)
+  ggsave(fn, height = 3, width = 5)
+  
+  write.table(
+    data.frame(g, stringsAsFactors = F),
+    col.names = F, quote = F, sep="\t",
+    row.names = F, file = gsub(
+      "HClust_Lineplot\\.png",
+      "gene_list.txt", fn
+    )
+  )
 }
 
 ######################### Run A TMixClust Analysis ###########################

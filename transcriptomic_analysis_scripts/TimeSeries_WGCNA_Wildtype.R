@@ -21,7 +21,7 @@ min_lfc=4                                          # log fold change threshold
 min_cpm=0.50                                       # Minimum overall abundance
 max_cpm=20                                        # Maximum overall abundance
   output_prefix="lfc4"                        # Prefix for output files
-dgeFile="LTS_DGEList.Rdata"                   # Rdata file with dgelist object
+dgeFile="LTS_DEG_Analysis_results/LTS_DGEList.Rdata" # Rdata file with dgelist object
 
 ## Helper Function filters a count matrix by given criteria
 filterCPMmat<-function(

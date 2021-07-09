@@ -29,6 +29,29 @@
 #                                                                            #
 #                                                                            #
 # Created: June 11, 2019                                                     #
+# Updates:                                                                   #
+#     Aug 28, 2020 Section: Global Analysis -- Wildtype Time Series          #
+#     Added generation of time series plots and summary statistics for       #
+#     selected genes.  these files are stored in the folder                  #
+#     "wildtype_time_series_plots"                                           #
+#                                                                            #
+#     Aug 31, 2020 All Sections                                              #
+#     Major change in FPKM Calculations. Previously, FPKM were calculated    #
+#     using total library size based on all GTF Features. In this analysis   #
+#     FPKM are calculated AFTER filterByExpression has been used to remove   #
+#     features below the limit of detection the majority of samples          #
+#                                                                            #
+#     October 28, 2020 Section: Global Analysis -- Wildype Time Series       #
+#     Added several genes to the selection list for time series plots        #
+#                                                                            #
+#     October 28, 2020 All Sections                                          #
+#     Added code to generate length bias plots for all pairwise contrasts.   #
+#     The exact test fold changes were used for all contrasts except those   # 
+#     estimated in the section "Global Analysis Wildtype time series", where #
+#     the quasi likelihood test was used instead.                            #
+#                                                                            #
+#                                                                            #
+#                                                                            #                                      
 # Author: Adam Faranda                                                       #
 ##############################################################################
 
@@ -36,6 +59,7 @@
 
 # CHANGE THIS DIRECTORY
 setwd('~/Documents/LEC_Time_Series')
+#setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_3_Oct_2020")
 #load("GeneLengthTable.Rdata")
 library(dplyr)
 library(cluster)
@@ -54,15 +78,17 @@ source('transcriptomic_analysis_scripts/Overlap_Comparison_Functions.R')
 
 
 # Create directory to store results (if it does not yet exist)
-if(!dir.exists('results'))
+if(!dir.exists('LTS_DEG_Analysis_results'))
 {
   dir.create('LTS_DEG_Analysis_results')
 }
 ############################ Load in Data Files ##############################
 
 # CHANGE THIS DIRECTORY
-dl<-"~/Documents/LEC_Time_Series_HTSeq_Counts"
-
+dl<-paste(
+  wd, "/LEC_Time_Series_HTSeq_Counts",
+  sep = ""
+)
 ft<-hc_getFileTable(
   dirList=dl, filename = "HTSeq_GeneCounts_All.csv"
 )
@@ -142,14 +168,7 @@ dge<-master[,
             master$samples$genotype == 'WT' &    # Select Samples
               master$samples$batch == 'DBI' 
             ]
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
-row.names(dge$genes)<-dge$genes$gene_id
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -163,8 +182,16 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Drop low features
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                  # Factors and Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -276,6 +303,33 @@ for (c in colnames(cntmat)) {
     Avg1 = rownames(cntmat)[cntmat[,c] !=0][1],
     Avg2 = rownames(cntmat)[cntmat[,c] !=0][2]
   )
+  
+  fn<-paste("LTS_DEG_Analysis_results/DBI_",c,"_Length_Bias.png", sep="")
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
+  
+  
+  
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
@@ -291,14 +345,7 @@ dge<-master[,
             master$samples$genotype == 'WT' &    # Select Samples
               master$samples$batch == 'DNA1' 
             ]
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
-row.names(dge$genes)<-dge$genes$gene_id
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -312,8 +359,16 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Drop low features
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                       # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -426,6 +481,33 @@ for (c in colnames(cntmat)) {
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
+  
+  fn<-paste(
+    "LTS_DEG_Analysis_results/DNA_Link_Experiment_1_",
+    c,"_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
 }
 
 write.csv(df,"LTS_DEG_Analysis_results/DNA_Link_Experiment_1_DEG_Summary_Tables.csv")
@@ -436,14 +518,8 @@ dge<-master[,
             master$samples$genotype == 'WT' &    # Select Samples
               master$samples$batch == 'DNA2' 
             ]
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
-row.names(dge$genes)<-dge$genes$gene_id
+
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -455,8 +531,16 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] 
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                   # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -567,6 +651,34 @@ for (c in colnames(cntmat)) {
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
+  
+  # Generate Length Bias Plots
+  fn<-paste(
+    "LTS_DEG_Analysis_results/DNA_Link_Experiment_2_",
+    c,"_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
+  
 }
 
 write.csv(df,"LTS_DEG_Analysis_results/DNA_Link_Experiment_2_DEG_Summary_Tables.csv")
@@ -579,15 +691,9 @@ dge<-master[,
               master$samples$batch %in% c('DBI', 'DNA1')
             ]
 
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
 dge$samples$batch<-droplevels(factor(dge$samples$batch))
-row.names(dge$genes)<-dge$genes$gene_id
+
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -606,8 +712,16 @@ cntmat<-makeContrasts(
 )
 
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # drop low features
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                    # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -747,6 +861,34 @@ for (c in colnames(cntmat)) {
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
+  
+  # Generate Length Bias Plots
+  fn<-paste(
+    "LTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",
+    c,"_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
 }
 
 write.csv(df,"LTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_DEG_Summary_Tables.csv")
@@ -755,10 +897,15 @@ write.csv(deg,"LTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_QLFTest_DEG.cs
 
 # Global Analysis -- Wildtype Time Series ####
 dge<-master[, master$samples$genotype == 'WT']    # Select Samples
-
-dge$samples$group<-droplevels(  # Add Group Mean RPKMs (by interval) 
+dge$samples$group<-droplevels(  
   dge$samples$interval
 )
+
+# Define Experimental Design
+design<-model.matrix(~interval + batch, dge$samples)    
+colnames(design)<-gsub("interval", '', colnames(design))
+
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] 
 rbg<-as.data.frame(rpkmByGroup(dge))      
 rbg$gene_id<-row.names(rbg)
 dge$genes<-merge(
@@ -766,14 +913,10 @@ dge$genes<-merge(
   by='gene_id'
 )
 row.names(dge$genes)<-dge$genes$gene_id
+fpkm<-as.data.frame(rpkm(dge, gene.length="coding_length"))
+fpkm$gene_id<-row.names(fpkm)
 
-# Define Experimental Design
-design<-model.matrix(~interval + batch, dge$samples)    
-colnames(design)<-gsub("interval", '', colnames(design))
-
-
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-calcNormFactors(dge)                    # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -857,16 +1000,136 @@ for (c in c('WT6', 'WT24', 'WT48', 'WT120')) {
   dg$contrast<-paste(c,"0H", sep="vs")
   dg$test<-"QLFTest"
   df<-bind_rows(df, dg)
+  
+  # Generate Length Bias Plots
+  fn<-paste(
+    "LTS_DEG_Analysis_results/Global_Wildtype_",
+    c,"vs0H_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", c,          
+    "vs 0H"
+  )
+  
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.qt$coding_length,2), y=deg.qt$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.qt$logFC) > 1 & deg.qt$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.qt$logFC, log(deg.qt$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.qt$logFC~log(deg.qt$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.qt$logFC)-1,rho)
+  text(7,max(deg.qt$logFC)-3,sig)
+  dev.off()
+  
+}
+## Generate Time Series Plots for Selected Genes
+#List of Genes over which to tabulate time series
+# Un-comment genes that you would like to generate a table for
+genes<-c(
+  Egr1="ENSMUSG00000038418", Egr2="ENSMUSG00000037868", Egr3="ENSMUSG00000033730", 
+  Grem1="ENSMUSG00000074934", Ptx3="ENSMUSG00000027832", Fn1="ENSMUSG00000026193",
+  Actn1="ENSMUSG00000015143", Acta2="ENSMUSG00000035783", Col1a1="ENSMUSG00000001506",
+  Atf3="ENSMUSG00000026628", Pitx3="ENSMUSG00000025229", Klf2="ENSMUSG00000055148",
+  Emp1="ENSMUSG00000030208", Cxcl1="ENSMUSG00000029380", Cxcl2="ENSMUSG00000058427",
+  Cxcl5="ENSMUSG00000029371", Ppbp="ENSMUSG00000029372", #Cxcl9="ENSMUSG00000029417",
+  Cxcr2="ENSMUSG00000026180", #Cxcr4="ENSG00000121966", Runx1="ENSMUSG00000022952",
+  Tnc="ENSMUSG00000028364", Fos="ENSMUSG00000021250", Ier2="ENSMUSG00000053560",
+  Fosb="ENSMUSG00000003545", Jun="ENSMUSG00000052684", Junb="ENSMUSG00000052837",
+  Timp1 = 'ENSMUSG00000001131', Serpine1 = 'ENSMUSG00000037411', Hmga1 = 'ENSMUSG00000046711',
+  Thbs1 ='ENSMUSG00000040152', Ier3 = 'ENSMUSG00000003541', Esm1 = 'ENSMUSG00000042379',
+  Zc3h12a = 'ENSMUSG00000042677', Dusp6 = 'ENSMUSG00000019960', Tcim  = 'ENSMUSG00000056313',
+  Mrtfa = 'ENSMUSG00000042292', Ch25h = 'ENSMUSG00000050370', Tagln = 'ENSMUSG00000032085',
+  Tagln2 = 'ENSMUSG00000026547', Tagln3 = 'ENSMUSG00000022658', Hsbp1 = 'ENSMUSG00000031839',
+  Dkk3 = 'ENSMUSG00000030772', Wnt16 = 'ENSMUSG00000029671', Ccl2 = "ENSMUSG00000035385", 
+  Jund = 'ENSMUSG00000071076', Cdk5r1='ENSMUSG00000048895', F3='ENSMUSG00000028128',
+  Fas = 'ENSMUSG00000024778', Gadd45a='ENSMUSG00000036390', Gadd45b='ENSMUSG00000015312',
+  Icam1 = 'ENSMUSG00000037405', Nr4a1='ENSMUSG00000023034', Rcan1='ENSMUSG00000022951', 
+  Runx1 = 'ENSMUSG00000022952', Itgb8="ENSMUSG00000025321", Cav1 ="ENSMUSG00000007655",
+  Col1a1 = "ENSMUSG00000001506", Ecm1="ENSMUSG00000028108", Ltbp2="ENSMUSG00000002020",
+  Vcan = "ENSMUSG00000021614", Nfkb1="ENSMUSG00000028163",Bcl3="ENSMUSG00000053175", 
+  Ldb1="ENSMUSG00000025223", Spi1="ENSMUSG00000002111", Smad6="ENSMUSG00000036867",
+  Igfbp3="ENSMUSG00000020427", Cebpa="ENSMUSG00000034957", Fbln2="ENSMUSG00000064080",
+  Col5a3="ENSMUSG00000004098", Col5a2="ENSMUSG00000026042", Col7a1="ENSMUSG00000025650",
+  Col16a1="ENSMUSG00000040690", Atf4="ENSMUSG00000042406", Serpina3n="ENSMUSG00000021091",
+  Serpina3c="ENSMUSG00000066361", Serpina3h="ENSMUSG00000041449", Serpina3f="ENSMUSG00000066363",
+  Serpina3m="ENSMUSG00000079012", Serpina3i="ENSMUSG00000079014", Serpina3g="ENSMUSG00000041481"
+)
+
+# Check entrez ID's against symbols
+for(g in names(genes)){
+  eid<- master$genes %>% filter(SYMBOL == g) %>% pull(gene_id)
+  if(eid != genes[g]){
+    print(paste(g, eid, genes[g]))
+  } else {
+    print("valid")
+  }
 }
 
+# Plot RPKM for EGR1, FosB, IER2, JunB, and Fos/c-Fos
+for (g in names(genes)){
+  plt<-inner_join(
+    dge$samples, 
+    reshape2::melt(fpkm %>% filter(gene_id == genes[g])) %>%
+      filter(variable != "coding_length") %>%
+      dplyr::select(sample=variable, FPKM=value),
+    by="sample"
+  )
+  plt$gene_symbol<-g
+  plt$ensembl_id<-genes[g]
+  ggplot(plt, aes(x=hours.pcs, y=FPKM, group=interval)) + 
+    geom_boxplot() + ggtitle(g)
+  ggsave(
+    filename=paste(
+      "LTS_DEG_Analysis_results/",g,
+      "_fpkm_box.png", sep=""
+    ), width=6, height=2
+  )
+  
+  ggplot(plt, aes(x=hours.pcs, y=FPKM, group=interval)) + 
+    geom_point(aes(color=batch)) + ggtitle(g)
+  ggsave(
+    filename=paste(
+      "LTS_DEG_Analysis_results/",g,
+      "_fpkm_pnt.png", sep=""
+    ), width=6, height=2
+  )
+  
+  fn<- paste("LTS_DEG_Analysis_results/",g,"_FPKM_Time.tsv", sep="")
+  write.table(
+    plt %>%
+      arrange(interval, batch) %>%
+      dplyr::select(
+        gene_symbol, ensembl_id, 
+        sample, batch, hours.pcs, 
+        interval, FPKM
+      ), file = fn, row.names = F,
+    sep="\t", quote=F
+  )
+}
+
+
+# Generate Tables For Further Plotting, with statistics
 write.csv(df,"LTS_DEG_Analysis_results/Global_Wildtype_DEG_Summary_Tables.csv")
 write.csv(deg,"LTS_DEG_Analysis_results/Global_Wildtype_QLFTest_DEG.csv")
-
+write.csv(
+  fpkm, 
+  "LTS_DEG_Analysis_results/Global_Wildtype_QLFTest_FPKM_Matrix.csv"
+)
 
 # edgeR TMM/cpm (log2 transformed) used for clustering (whole data set)
 c<-cpm(dge, log=T)
 write.csv(
-  c, "LTS_DEG_Analysis_results/Global_Wildtype_TMM_Normalized_Present_Genes.txt", row.names=F
+  c, 
+  "LTS_DEG_Analysis_results/Global_Wildtype_TMM_Normalized_Present_Genes.txt", 
+  row.names=F
 )
 
 png(
@@ -918,16 +1181,8 @@ dge<-master[,
               master$samples$interval %in% c('0H', '48H')&    # Select Samples
               master$samples$batch == 'DBI',
             ]
-
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
 dge$samples$batch<-droplevels(factor(dge$samples$batch))
-row.names(dge$genes)<-dge$genes$gene_id
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -943,8 +1198,16 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # drop low features
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                    # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -1064,6 +1327,32 @@ for (c in colnames(cntmat)) {
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
+  
+  fn<-paste(
+    "LTS_DEG_Analysis_results/Fibronectin_Experiment_",
+    c,"_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
 }
 write.csv(
   df,"LTS_DEG_Analysis_results/Fibronectin_Experiment_DEG_Summary_Tables.csv")
@@ -1079,15 +1368,9 @@ dge<-master[,
               master$samples$batch == 'DNA1',
             ]
 
-rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
 dge$samples$interval<-droplevels(dge$samples$interval)
 dge$samples$batch<-droplevels(factor(dge$samples$batch))
-row.names(dge$genes)<-dge$genes$gene_id
+
 
 design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
 colnames(design)<-gsub(
@@ -1103,8 +1386,16 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # Factors & Dispersion
-dge<-calcNormFactors(dge)
+dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # drop low features
+rbg<-as.data.frame(rpkmByGroup(dge))             # Add Group Mean RPKMs 
+rbg$gene_id<-row.names(rbg)
+dge$genes<-merge(
+  dge$genes, rbg,
+  by='gene_id'
+)
+row.names(dge$genes)<-dge$genes$gene_id
+
+dge<-calcNormFactors(dge)                      # Factors & Dispersion
 dge<-estimateDisp(dge, design, robust = T)
 
 fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
@@ -1224,6 +1515,33 @@ for (c in colnames(cntmat)) {
   dg$contrast<-c
   dg$test<-"Exact Test"
   df<-bind_rows(df, dg)
+  
+  fn<-paste(
+    "LTS_DEG_Analysis_results/Beta8_Integrin_Experiment_",
+    c,"_Length_Bias.png", sep=""
+  )
+  mn<-paste("Length Bias in ",c,sep='')
+  yl <-paste(                                    # Construct y axis label
+    "Log2 Fold Change in", pair[2],          
+    "vs",pair[1]
+  )
+  
+  png(fn, width=6, height = 5, units="in", res=1200)
+  plot(
+    x=log(deg.et$coding_length,2), y=deg.et$logFC, main=mn,
+    xlab = "Log2 Gene Length (exon-union)",
+    ylab = yl,
+    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
+  )
+  
+  # Add Correlation Coefficients to tests
+  ct=cor.test(deg.et$logFC, log(deg.et$coding_length,2), method="spearman")
+  rho=paste("rho:", round(ct$estimate,3))
+  sig=paste("p value:", signif(ct$p.value,3), sep="")
+  abline(lm(deg.et$logFC~log(deg.et$coding_length,2)), col="red", lwd=2)
+  text(6.5,max(deg.et$logFC)-1,rho)
+  text(7,max(deg.et$logFC)-3,sig)
+  dev.off()
 }
 write.csv(
   df,
