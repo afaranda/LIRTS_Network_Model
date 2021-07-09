@@ -1408,7 +1408,7 @@ ggsave(
 write.csv(
   c.bat, 
   "LTS_DEG_Analysis_results/Global_Wildtype_TMM_Batch_Corrected_Present_Genes.txt",
-  row.names=T
+  row.names=F
 )
 
 cm <- cor(c.bat, method = "spearman")

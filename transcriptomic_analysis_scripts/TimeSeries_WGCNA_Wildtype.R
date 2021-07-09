@@ -16,12 +16,14 @@
   
 library(edgeR)
 library(WGCNA)
-setwd('~/Documents/LEC_Time_Series')
-min_lfc=4                                          # log fold change threshold
+setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_30_Apr_2021")
+min_lfc=1                                          # log fold change threshold
 min_cpm=0.50                                       # Minimum overall abundance
-max_cpm=20                                        # Maximum overall abundance
-  output_prefix="lfc4"                        # Prefix for output files
-dgeFile="LTS_DEG_Analysis_results/LTS_DGEList.Rdata" # Rdata file with dgelist object
+max_cpm=10000                                         # Maximum overall abundance
+output_prefix="lfc1"                               # Prefix for output files
+
+# Rdata file with dgelist object
+dgeFile="LTS_DEG_Analysis_results/LTS_DGEList.Rdata" 
 
 ## Helper Function filters a count matrix by given criteria
 filterCPMmat<-function(
@@ -68,14 +70,25 @@ qlf<-glmQLFTest(fit, coef=2:5)
 deg<-as.data.frame(topTags(qlf, n=Inf))
 
 # construct datExpr and datTraits using filteredGenes
+datExpr <- read.csv(
+  "LTS_DEG_Analysis_results/Global_Wildtype_TMM_Batch_Corrected_Present_Genes.txt",
+  row.names = 1
+)
+
+deg <- deg%>%filter(
+  gene_id %in% row.names(datExpr)
+)
 datExpr<-t(
   filterCPMmat(
-  object = dge, samples=dge$samples$sample, lfc=min_lfc,
-  min_log_cpm = min_cpm, max_log_cpm = max_cpm, func=cpm,
+  object = datExpr, samples=dge$samples$sample, lfc=min_lfc,
+  min_log_cpm = min_cpm, max_log_cpm = max_cpm, func=function(x, log){print(log); return(x)},
   lfc_columns = paste('logFC', c('6H', '24H', '48H', '120H'), sep="."),
   deg_table = deg, include_genes = NULL
   )
 )
+
+
+
 
 # remove columns that hold information we do not need.
 allTraits = dge$samples[, -c(1,2,3,5,6,8,9,10,11)];
