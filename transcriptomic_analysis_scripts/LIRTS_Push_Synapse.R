@@ -4,6 +4,7 @@ library('dplyr')
 
 ## Synapse Login 
 synapser::synLogin()
+syn_project <- ""
 
 ## Specify Count Data and scripts Location
 count_data_dir <- "~/Documents/LEC_Time_Series/LIRTS_Raw_Data/"
@@ -14,47 +15,9 @@ annotation_path <- paste0(
   "LIRTS_Raw_Data/Mouse_Gene_Annotations.csv"
 )
 
-## Construct Sample Covariate Table
-ft <- data.frame(
-  sample=gsub("_rf_GeneCount.txt", "", count_files),
-  files=count_files,
-  group=factor(
-      ifelse(
-          grepl("Cre_N", count_files),
-	  ifelse(
-	      grepl("^0H", count_files),
-	      "WT0H", "WT72H"
-	  ),
-	  ifelse(
-	      grepl("^0H", count_files),
-	      "R10H", "R172H"
-	  )
-      ),
-      levels=c("WT0H", "WT72H", "R10H", "R172H")
-  ),
-  genotype=factor(
-      ifelse(
-          grepl("Cre_N", count_files),
-	  "WT", "R1"
-      ),
-      levels=c("WT", "R1")
-  ),
-  interval=factor(
-      ifelse(
-          grepl("^0H", count_files),
-	      "0H", "72H"
-	  ),
-      levels=c("0H", "72H")
-  )
-) %>%
-group_by(group) %>%
-  mutate(label = paste(group, row_number(), sep="_")) %>%
-  as.data.frame()
-
-
-# Create New Project and push data to it
+# Find Synapse Project and push data to it
 syn_project <- Project(
-  name="Runx1_Study"
+  name="LIRTS_Network_Model"
 )
 syn_project <- synStore(
   syn_project
@@ -81,7 +44,7 @@ syn_code_dir <- synStore(
 
 # Add this script to the code dir
 synapse_push <- File(
-  path=paste0(scripts_dir, "/Runx1_Push_Synapse.R"),
+  path=paste0(scripts_dir, "/LIRTS_Push_Synapse.R"),
   parent=syn_code_dir
 )
 synapse_push <- synStore(
@@ -111,7 +74,7 @@ synSetProvenance(
 
 # Upload files in the counts folder
 cf <- c()
-for(f in list.files(count_data_dir)){
+for(f in list.files(count_data_dir, pattern="_rf_GeneCount")){
   print(f)
   count_file <- File(
     path=paste(count_data_dir, f, sep="/"),
@@ -123,30 +86,3 @@ for(f in list.files(count_data_dir)){
     syn_act
   )
 }
-
-## Define schema for synapse sample table
-syn_cols <- list(                                 
-  Column(name="sample", columnType='STRING', maximumSize =50), 
-  Column(name="files", columnType='STRING', maximumSize =100),
-  Column(name="group", columnType='STRING', maximumSize =20),
-  Column(name="genotype", columnType='STRING', maximumSize =10),
-  Column(name="interval", columnType='STRING', maximumSize =10),
-  Column(name="label", columnType='STRING', maximumSize =10)
-)
-syn_schema <- Schema(
-  name="Runx1_Study_Sample_Metadata",
-  columns=syn_cols,
-  parent=syn_project
-)
-
-## Create synapse sample table
-syn_sample_table <- Table(
-  schema = syn_schema,
-  values = ft
-)
-
-syn_sample_table <- synStore(syn_sample_table)
-synSetProvenance(
-    syn_sample_table,
-    syn_act
-)
