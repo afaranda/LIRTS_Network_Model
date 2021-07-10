@@ -7,6 +7,7 @@
 #           - DBI Experiment: 3 contrasts, 24v0, 48v0, 48v24                 #
 #           - DNA Link Experiment 1: 3 contrasts, 6v0, 24v0, 24v6            #
 #           - DNA Link Experiment 2: 1 contrast, 120v0                       #
+#           - DNA Link Experiment 3: 1 contrast, 72vs0                       #
 #           - 0 and 24 Hours: 6 contrasts permuted from 24v0, DNALink v DBI  #
 #           - Global Wildtype: All subseqeuent intervals vs 0                #
 #           - Fibronectin: DBI samples, WT vs FNcKO, 0 vs 48 Hours           #
@@ -76,11 +77,13 @@
 #     attribute to distinguish between single-end polyA libraries generated  #
 #     by DBI and paired end ribodepletion libraries from DNA Link            #
 #                                                                            #
+#     July 10, 2021 Major Change -- Synapse Integration                      #
+#     Changed approach to DGEList construction to allow for Synapse          #
+#     integration. This script will check for the existence of a master      #
+#     DGEList, and call LIRTS_Push_Synapse.R if none exists                  #
 #                                                                            #
-#     TODO                                                                   #
-#        -  When filtering by expression, take DNA1 and DNA2 together.       #
-#           Instead of batch, use sequeuncing technology as the determining  #
-#           factor                                                           #
+#     July 10, 2021 Major Change -- Updated Genome to Ensembl v104 / GRCm39  #   
+#                                                                            #
 #                                                                            #                                      
 # Author: Adam Faranda                                                       #
 ##############################################################################
@@ -88,8 +91,8 @@
 ############################ Setup Environment ###############################
 
 # CHANGE THIS DIRECTORY
-#setwd('~/Documents/LEC_Time_Series')
-setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_30_Apr_2021")
+setwd('~/Documents/LEC_Time_Series')
+#setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_30_Apr_2021")
 #load("GeneLengthTable.Rdata")
 library(dplyr)
 library(cluster)
@@ -100,7 +103,14 @@ library(RColorBrewer)
 library(EnhancedVolcano)
 wd<-getwd()
 
-source('transcriptomic_analysis_scripts/BuildDataMatrix.R')
+synapser::synLogin()
+syn_project <- "syn25579691"                 ## Synapse ID for this project
+syn_count_dir <- "syn25976327"               ## Synapse folder with counts
+syn_code_dir <- "syn25976329"                ## Synapse folder with code
+syn_sample_table <- "syn25582010"            ## Synapse sample table
+syn_gene_meta <- "syn25976328"               ## Gene Annotations
+local_data_dir <- paste0(wd,"/LIRTS_Raw_Data")        ## Local data directory
+
 source('transcriptomic_analysis_scripts/PreprocessingFunctions.R')
 source('transcriptomic_analysis_scripts/PrincipalComponents.R')
 source('transcriptomic_analysis_scripts/ClusteringFunctions.R')
@@ -112,103 +122,26 @@ if(!dir.exists('LTS_DEG_Analysis_results'))
 {
   dir.create('LTS_DEG_Analysis_results')
 }
-############################ Load in Data Files ##############################
 
-# CHANGE THIS DIRECTORY
-dl<-paste(
-  wd, "/LEC_Time_Series_HTSeq_Counts",
-  sep = ""
-)
-ft<-hc_getFileTable(
-  dirList=dl, filename = "HTSeq_GeneCounts_All.csv"
-)
 
-ds<-hc_loadFiles(ft)
-ft<-hc_identifierConsistency(ds, ft)
+########################### Fetch Master DGE List ############################
 
-###################### Annotate Genes in table 'lt' ##########################
-
-# Import Annotations, append to "Gene Length" Table
-fn<-paste(dl,'Gene_Annotations.csv', sep='/')
-if(file.exists(fn)){
-  lt<-read.csv(fn, row.names = 1)
-  print(TRUE)
+fn <- "LIRTS_master_dgelist.Rdata"
+syn_dge <- synFindEntityId(name=fn, parent=syn_count_dir)
+if(file.exists(paste0("LIRTS_Raw_Data/",fn))){
+  print("Loading Local DGEList")
+  load(paste0("LIRTS_Raw_Data/",fn))
+} else if(!is.null(syn_dge)){
+  print("Fetching DGEList from Synapse")
+  synGet(
+    syn_dge,
+    downloadLocation = "LIRTS_Raw_Data"
+  )
+  load(paste0("LIRTS_Raw_Data/",fn))
 } else {
-  library('AnnotationHub')
-  lt<-read.table(
-    paste(dl,'Ens_Mm101_Length_GC.txt', sep="/"),
-    header=T, quote="", sep="\t", 
-    stringsAsFactors = F
-  )
-  ah<-AnnotationHub()
-  # Run Query to find proper Annotation Set:
-  #AnnotationHub::query(ah, pattern=c("EnsDb", "Mus musculus", "101"))
-  edb<-ah[['AH83247']]
-  lt<-merge(
-    lt, AnnotationDbi::select(
-      edb, keys=lt$gene_id, 
-      columns = c("SYMBOL", "DESCRIPTION", "GENEBIOTYPE", "SEQNAME"), 
-      keytype = "GENEID"
-    ),
-    by.x = 'gene_id', by.y='GENEID'
-  )
-  
-  library(org.Mm.eg.db)
-  lt<-merge(
-    lt, AnnotationDbi::select(
-      org.Mm.eg.db, keys=unique(lt$SYMBOL), 
-      columns = c("ENTREZID"), 
-      keytype = "SYMBOL"
-    ), by='SYMBOL'
-  )
-  row.names(lt)<-lt$gene_id
-  rm(ah, edb)
-  detach(package:org.Mm.eg.db, unload = T)
-  detach(package:AnnotationHub, unload=T)
-  detach(package:ensembldb, unload=T)
-  detach(package:AnnotationFilter, unload=T)
-  write.csv(lt, fn)
-} 
-
-########################### Setup Master DGE List ############################
-htseq_count<-hc_buildDataFrame(ds, ft)
-rownames(ft)<-ft$sample
-ft$sample<-paste(
-  ft$genotype, 
-  paste(ft$hours.pcs,"H",sep=''), 
-  ft$batch,1:36, sep="_"
-)
-colnames(htseq_count)<-ft[colnames(htseq_count), 'sample']
-row.names(ft)<-ft$sample
-
-master<-DGEList(
-  htseq_count, 
-  samples=ft, 
-  genes=lt[row.names(htseq_count),]
-)
-
-# Reorder grouping factor, drop unused levels
-master$samples$interval<-droplevels(
-  factor(
-    paste(master$samples$hours.pcs, 'H', sep=''),
-    levels = c('0H', '6H', '24H','48H', '120H')
-  )
-)
-master$samples$genotype<-droplevels(
-  factor(
-    master$samples$genotype,
-    levels = c('WT', 'FN', 'B8')
-  )
-)
-master$samples$library <- droplevels(
-  factor(
-    ifelse(master$samples$batch =="DBI", "single", "paired"),
-    levels=c("single", "paired")
-  )
-)
-
-master$samples$group<-factor(gsub("_[0-9]+$",'',master$samples$sample))
-save(master, file = "LTS_DEG_Analysis_results/LTS_DGEList.Rdata")
+  print("Assembling DGEList from Counts")
+  source("transcriptomic_analysis_scripts/LIRTS_Fetch_Count_Data.R")
+}
 
 ######################### Analyze Wildtype Samples ###########################
 # DBI Analysis ####

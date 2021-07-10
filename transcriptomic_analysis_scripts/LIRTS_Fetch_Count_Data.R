@@ -89,24 +89,30 @@ master$samples$genotype<-factor(
 master$samples$group<-factor(
   paste(
     master$samples$genotype,
-    master$samples$batch,
     master$samples$hours_pcs,
+    master$samples$batch,
     sep="_"
   ),
   levels=c(
-    "WT_DBI_0H","WT_DNA1_0H","WT_DNA2_0H","WT_DNA3_0H",
-    "WT_DNA1_6H",
-    "WT_DBI_24H","WT_DNA1_24H",
-    "WT_DBI_48H",
-    "WT_DNA3_72H",
-    "WT_DNA2_120H",
-    "FN_DBI_0H", "FN_DBI_48H",
-    "B8_DNA1_0H", "B8_DNA1_24H"
+    "WT_0H_DBI","WT_0H_DNA1","WT_0H_DNA2","WT_0H_DNA3",
+    "WT_6H_DNA1",
+    "WT_24H_DBI","WT_24H_DNA1",
+    "WT_48H_DBI",
+    "WT_72H_DNA3",
+    "WT_120H_DNA2",
+    "FN_0H_DBI", "FN_48H_DBI",
+    "B8_0H_DNA1", "B8_24H_DNA1"
   )
 )
+
+master$samples %>%
+  group_by(group) %>%
+  mutate(
+    label=paste(group, row_number(),sep="_")
+  ) %>% as.data.frame() -> master$samples
+
 # Strip QC Rows from Count Matrix
 master <- master[!grepl("__", row.names(master$counts)),,keep.lib.sizes=F]
-
 
 ## If the annotation table was already downloaded, add it to master DGEList
 fn<-'LIRTS_Raw_Data/Mouse_Gene_Annotations.csv'
