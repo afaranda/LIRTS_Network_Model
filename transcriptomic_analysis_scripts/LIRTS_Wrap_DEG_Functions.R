@@ -387,8 +387,8 @@ iterate_edgeR_pairwise_contrasts <- function(
     )
     print(pair)
 
-    deg.et<-genDegTable(dge, pair[1], pair[2], design)
-    deg.qt<-genDegTable(fit, pair[1], pair[2], design)
+    deg.et<-genPairwiseDegTable(dge, pair[1], pair[2], design)
+    deg.qt<-genPairwiseDegTable(fit, pair[1], pair[2], design)
     
     deg <- bind_rows(
       deg,
