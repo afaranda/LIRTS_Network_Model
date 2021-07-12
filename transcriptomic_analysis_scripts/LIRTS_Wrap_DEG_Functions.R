@@ -10,8 +10,7 @@
 library(edgeR)
 library(dplyr)
 library(ggplot2)
-setwd("~/Desktop/FCM_Methods_Paper_Analysis")
-wd<-getwd()
+
 ############  Wrapper function to fit models to a design matrix  #############
 process_edgeR_ByDesign <- function(y, genes=NULL, design, rob=T, norm="TMM"){
   if(is.null(genes)){
@@ -59,7 +58,7 @@ process_voom_ByDesign <- function(y, genes, design, rob=T, norm="TMM"){
 ############################ Plot Diagnostics ################################
 ## Generate diagnostic plots. 
 diagnostic_plots <- function(
-  dgelist=dge, color_attrib="group", shape_attrib=NULL, 
+  dge=dge, color_attrib="group", shape_attrib=NULL, 
   respath="LIRTS_DEG_Analysis_results", prefix="DBI_Wildtype"
 ){
   # Colorblind friendly pallatte from 
@@ -75,7 +74,7 @@ diagnostic_plots <- function(
       respath,"/",prefix,"_BCV_Plot.png", sep=""
     )
   )  
-  plotBCV(dge)                                              # BCV Plot
+  plotBCV(obj$dge)                                              # BCV Plot
   dev.off()
   
   # Plot sample projections in first two Principal Components
