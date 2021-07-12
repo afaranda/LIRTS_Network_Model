@@ -267,6 +267,25 @@ cntmat<-makeContrasts(
   levels = design
 )
 
+# Normalize DGEList and fit model
+obj <- process_edgeR_ByDesign(
+  dge,
+  design=design
+)
+
+## Iterate over contrasts and prepare summary figures / tables
+df<-data.frame()
+deg <- res[[2]]
+res <- iterate_edgeR_pairwise_contrasts(
+  obj[[1]], obj[[2]], cntmat, df=df, design=design,
+  deg=deg, prefix="DNA1_Wildtype"
+)
+
+write.csv(
+  res[[1]],
+  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_DEG_Summary_Tables.csv"
+)
+
 
 ## Generate diagnostic plots. 
 png("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_BCV_Plot.png")
@@ -304,10 +323,6 @@ legend(
 dev.off()
 
 
-## Iterate over contrasts and prepare summary figures / tables
-df<-data.frame()
-
-write.csv(df,"LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_DEG_Summary_Tables.csv")
 
 # DNA Link Analysis --  Second Experiment ####
 dge<-master[,
