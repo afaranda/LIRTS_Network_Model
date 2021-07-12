@@ -1,0 +1,446 @@
+########################         HEADER BLOCK      ###########################
+#  File:    Wrap_edgeR_Functions.R                                           #
+#  Purpose: Define wrapers to streamline automated edgeR analysis            #
+#  Created: Feb 2, 2021                                                      #
+#  Author:  Adam Faranda                                                     #
+#                                                                            #
+##############################################################################
+
+#########      Load Libraries and import expression data          ############
+library(edgeR)
+library(dplyr)
+library(ggplot2)
+setwd("~/Desktop/FCM_Methods_Paper_Analysis")
+wd<-getwd()
+############  Wrapper function to fit models to a design matrix  #############
+process_edgeR_ByDesign <- function(y, genes=NULL, design, rob=T, norm="TMM"){
+  if(is.null(genes)){
+    y<-y[filterByExpr(y, design), ,keep.lib.sizes=F] # Drop low features
+  } else {
+    y<-y[genes, ,keep.lib.sizes=F] # Or keep selected features
+  }
+  y <- calcNormFactors(y, method = norm)
+  y <- estimateDisp(y, design, robust = rob)
+  
+  fpkm<-rpkm(y, normalized.lib.sizes = T, gene.length = "eu_length")
+  for(g in unique(y$samples$group)){
+    s<-row.names(y$samples[y$samples$group == g,])
+    y$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm[,s],1,mean)
+  }
+  
+  fit <- glmQLFit(y, design, robust = rob)
+  return(list(dge=y, fit=fit))
+}
+
+process_voom_ByDesign <- function(y, genes, design, rob=T, norm="TMM"){
+  if(is.null(genes)){
+    y<-y[filterByExpr(y, design), ,keep.lib.sizes=F] # Drop low features
+  } else {
+    y<-y[genes, ,keep.lib.sizes=F] # Or keep selected features
+  }
+  y <- calcNormFactors(y, method = norm)
+  y <- estimateDisp(y, design, robust = rob)
+  
+  # Estimate precision weights and 
+  v <- voom(y, design=design)
+  
+  fpkm_matrix <- apply(2^v$E, 2, function(x) x/(v$genes$eu_length/1000))
+  
+  # Calculate average values for each group
+  for(g in unique(v$targets$group)){
+    s<-row.names(v$targets[v$targets$group == g,])
+    v$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm_matrix[,s],1,mean)
+  }
+  
+  # Fit linear models to genes
+  fit <- lmFit(v, design=design)
+  return(list(dge=v, fit=fit))
+}
+
+######## Split and Process DGE List based on a set of sample groups ##########
+subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
+  
+  # Get samples associated with two groups
+  group_subset<-list()
+  for(gr in groups){
+    group_subset[[gr]] <- row.names(
+      y$samples %>% dplyr::filter(group == gr)
+    )
+  }
+  print(group_subset)
+  # Extract Subset DGEList 
+  y<-y[, unlist(group_subset)]
+  
+  # Relevel Factors as needed
+  for(covariate in colnames(y$samples)){
+    if(is.factor(y$samples[covariate])){
+      y$samples[covariate] <-droplevels(y$samples[covariate])
+    }
+  }
+  
+  # Fix the first group as the reference level / Intercept
+  y$samples$group <- relevel(y$samples$group, groups[1])
+  
+  if(norm == "TMM"){
+    design<-model.matrix(~group, y$samples)
+    colnames(design) <-gsub("group","",colnames(design))
+    y <- y[filterByExpr(y, design),,keep.lib.sizes=F]
+    y <- calcNormFactors(y)
+    y <- estimateDisp(y, design, robust=T)
+    
+    fpkm<-rpkm(y, normalized.lib.sizes = T, gene.length = "eu_length")
+    for(g in unique(y$samples$group)){
+      s<-row.names(y$samples[y$samples$group == g,])
+      y$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm[,s],1,mean)
+    }
+    
+    fit <- glmQLFit(y, design, robust = T)
+    return(
+      list(
+        dge=y, fit=fit, design=design
+      )
+    )
+  } else if (norm == "VOOM") {
+    print(levels(y$samples$group))
+    design<-model.matrix(~group, y$samples)
+    colnames(design) <- gsub("(\\(|\\))", "", colnames(design))
+    colnames(design) <-gsub("group","",colnames(design))
+    y <- y[filterByExpr(y, design),,keep.lib.sizes=F]
+    y <- calcNormFactors(y)
+    
+    # NOTE -- FPKM Calculation Fails to account for VOOM precision Weights !!!
+    # THIS SHOULD BE FIXED if VOOM is intended for use !!!
+    fpkm<-rpkm(y, normalized.lib.sizes = T, gene.length = "eu_length")
+    for(g in unique(y$samples$group)){
+      s<-row.names(y$samples[y$samples$group == g,])
+      y$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm[,s],1,mean)
+    }
+
+    v <- voom(y, design=design)
+
+    
+    return(list(v=v, design=design))
+  } else if (norm == "RUVs"){
+    
+    design<-model.matrix(~group, y$samples)
+    colnames(design) <-gsub("group","",colnames(design))
+    y <- y[filterByExpr(y, design),,keep.lib.sizes=F]
+    controls <- row.names(y)
+    
+    # Assemble "Samples" matrix required by RUVs
+    differences <- matrix(-1,
+        nrow = length(levels(y$samples$group)), 
+        ncol = max(table(y$samples$group))
+    )
+    for(gri in 1:length(levels(y$samples$group))){
+      level <- levels(y$samples$group)[gri]
+      
+      s <- which(y$samples$group == level)
+      for(j in 1:length(s)){
+        differences[gri, j] <- s[j]
+      }
+    }
+    print("Difference Sets for RUVs")
+    print(differences)
+    
+    # Estimate nuisance parameter W_1
+    seq <- newSeqExpressionSet(counts = y$counts)
+    ruvs <- RUVs(
+      seq, cIdx = row.names(y),
+      k =1, scIdx=differences
+    )
+    y$samples$W_1 <- pData(ruvs)[row.names(y$samples), "W_1"]
+    design<-model.matrix(~group + W_1, y$samples)
+    colnames(design) <-gsub("group","",colnames(design))
+    
+    y <- y[filterByExpr(y, design),,keep.lib.sizes=F]
+    y <- calcNormFactors(y)
+    y <- estimateDisp(y, design, robust=T)
+    
+    # NOTE -- FPKM Calculation Fails to account for RUV adjustment !!!
+    # THIS may need to be FIXED if RUV is intended for use !!!
+    fpkm<-rpkm(y, normalized.lib.sizes = T, gene.length = "eu_length")
+    for(g in unique(y$samples$group)){
+      s<-row.names(y$samples[y$samples$group == g,])
+      y$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm[,s],1,mean)
+    }
+    
+    fit <- glmQLFit(y, design, robust = T)
+    return(
+      list(
+        dge=y, fit=fit, ruvs=ruvs, design=design
+      )
+    )
+    
+  } else if (norm == "RUVr"){
+    
+    # Fit a typical edgeR model
+    z <- y
+    design<-model.matrix(~group, z$samples)
+    colnames(design) <-gsub("group","",colnames(design))
+    z <- z[filterByExpr(z, design),,keep.lib.sizes=F]
+    z <- calcNormFactors(z)
+    z <- estimateDisp(z, design, robust=T)
+    z <- glmQLFit(z, design, robust = T)
+    print(head(residuals(z, typ="deviance")))
+    
+    # Estimate nuisance parameter W_1 using the RUVr method
+    seq <- newSeqExpressionSet(counts = z$counts)
+    seqUQ <- betweenLaneNormalization(seq, which="upper")
+    ruvr <- RUVr(
+      seqUQ, cIdx = row.names(z),
+      k = 1, residuals = residuals(z, type="deviance")
+    )
+    y$samples$W_1 <- pData(ruvr)[row.names(y$samples), "W_1"]
+    design<-model.matrix(~group + W_1, y$samples)
+    colnames(design) <-gsub("group","",colnames(design))
+    
+    y <- y[filterByExpr(y, design),,keep.lib.sizes=F]
+    y <- calcNormFactors(y)
+    y <- estimateDisp(y, design, robust=T)
+    
+    # NOTE -- FPKM Calculation Fails to account for RUV adjustment !!!
+    # THIS may need to be FIXED if RUV is intended for use !!!
+    fpkm<-rpkm(y, normalized.lib.sizes = T, gene.length = "eu_length")
+    for(g in unique(y$samples$group)){
+      s<-row.names(y$samples[y$samples$group == g,])
+      y$genes[paste0(g,"_Avg_FPKM")]<-apply(fpkm[,s],1,mean)
+    }
+    
+    fit <- glmQLFit(y, design, robust = T)
+    return(
+      list(
+        dge=y, fit=fit, ruvr=ruvr, design=design
+      )
+    )
+    
+  } else {
+    return(y)
+  }
+}
+
+#### Define function to generate DEG Tables from a fit or DGEList ############
+genPairwiseDegTable<-function(y, group1, group2, design){
+  print(
+    paste(
+      group1, "Samples:",
+      paste(
+        y$samples %>% filter(group == group1) %>% pull("label"),
+        collapse = ", "
+      )
+    )
+  )
+  print(
+    paste(
+      group2, "Samples:",
+      paste(
+        y$samples %>% filter(group == group2) %>% pull("label"),
+        collapse = ", "
+      )
+    )
+  )
+  
+  if(class(y) == "DGEGLM"){
+    cn<-sapply(
+      colnames(design), 
+      function(n){
+        ifelse(
+          n == group1, -1, 
+          ifelse(n == group2, 1, 0
+          )
+        )
+      }
+    )
+    print(cn)
+    return(
+      as.data.frame(
+        topTags(
+          glmQLFTest(y, contrast=cn), n=Inf
+        )
+      ) %>% 
+        dplyr::mutate(
+          Test = "QLFTest",
+          Group_1 = group1, 
+          Group_2 = group2
+        ) %>%
+        dplyr::select(
+          Test, Group_1, Group_2,
+          gene_id, logFC, logCPM, PValue, FDR, 
+          Avg1 = as.name(paste0(group1, "_Avg_FPKM")),
+          Avg2 = as.name(paste0(group2, "_Avg_FPKM"))
+        )
+    )
+  } else if(class(y) == "DGEList") {
+    return(
+      as.data.frame(
+        topTags(
+          exactTest(y, pair=c(group1, group2)), n=Inf
+        )
+      ) %>% 
+        dplyr::mutate(
+          Test = "ExactTest",
+          Group_1 = group1, 
+          Group_2 = group2
+        ) %>%
+        dplyr::select(
+          Test, Group_1, Group_2,
+          gene_id, logFC, logCPM, PValue, FDR, 
+          Avg1 = as.name(paste0(group1, "_Avg_FPKM")),
+          Avg2 = as.name(paste0(group2, "_Avg_FPKM"))
+        )
+    )
+  } else if(class(y) == "MArrayLM"){
+    cft <- contrasts.fit(
+      fit, contrasts=makeContrasts(
+        contrasts = paste(group2, group2, sep="-"),
+        levels=colnames(design)
+      )
+    )
+    ebs <- eBayes(cft)
+    return(
+      as.data.frame(
+        topTable(cft, n=Inf)
+      ) %>% 
+        dplyr::mutate(
+          Test = "LimmaVoom",
+          Group_1 = group1, 
+          Group_2 = group2
+        ) %>%
+        dplyr::select(
+          Test, Group_1, Group_2,
+          gene_id, logFC, logCPM=AveExper, PValue=P.Value, FDR=adj.P.Val, 
+          Avg1 = as.name(paste0(group1, "_Avg_FPKM")),
+          Avg2 = as.name(paste0(group2, "_Avg_FPKM"))
+        )
+    )
+  }
+}
+
+
+# Iterate over a set of contrasts, generate DEG Tables, DEG Summary tables
+# Volcano plots and bias plots for each contrast. 
+iterate_edgeR_pairwise_contrasts <- function(
+  dge, fit, cntmat=cntmat, df=df, design=design,
+  deg=deg,respath="LIRTS_DEG_Analysis_results",
+  prefix="DBI"
+){
+  print(cntmat)
+  for (c in colnames(cntmat)) {             
+    # Run Exact Tests
+    pair<-c(
+      names(cntmat[,c])[cntmat[,c] == -1], 
+      names(cntmat[,c])[cntmat[,c] == 1]
+    )
+    print(pair)
+
+    deg.et<-genDegTable(dge, pair[1], pair[2], design)
+    deg.qt<-genDegTable(fit, pair[1], pair[2], design)
+    
+    deg <- bind_rows(
+      deg,
+      deg.et %>%
+        mutate(Samples=prefix) %>%
+        tibble::remove_rownames(),
+      deg.qt %>%
+        mutate(Samples=prefix) %>%
+        tibble::remove_rownames()
+    )
+    
+    # Save DEG Tables
+    fn<-paste(
+      respath,"/",prefix,"_",c,"_Exact_Test_DEG.csv", sep=""
+    )
+    write.table(
+      deg.et, fn, col.names =T, quote = F, sep="\t", row.names = F
+    )
+    
+    fn<-paste(
+      respath,"/",prefix,"_",c,"_QLFTest_DEG.csv", sep=""
+    )
+    write.table(
+      deg.qt, fn, col.names=T, quote = F, sep="\t", row.names = F
+    )
+    
+    dg<-degSummary(                         # Generate Exact Test Summary tables
+      deg.et,
+      lfc = 'logFC',
+      fdr = 'FDR', 
+      Avg1 = pair[1],
+      Avg2 = pair[2]
+    )
+    
+    dg$contrast<-c
+    dg$test<-"Exact Test"
+    df<-bind_rows(df, dg)
+    
+    dg<-degSummary(                         # Generate QLF Test Summary tables 
+      deg.qt,
+      lfc = "logFC",
+      fdr = 'FDR', 
+      Avg1 = pair[1],
+      Avg2 = pair[2]
+    )
+    dg$contrast<-c
+    dg$test<-"QLFTest"
+    df<-bind_rows(df, dg)
+    
+  }
+  return(list(df, deg))
+}
+
+
+## Generate Length Bias Plot
+# fn<-paste(
+#   respath,"/",prefix,"_",c,"_Length_Bias.png", sep=""
+# )
+# 
+# mn<-paste("Length Bias in ",c,sep='')
+# png(fn, width=6, height = 5, units="in", res=1200)
+# plot(
+#   x=log(deg.et$eu_length,2), y=deg.et$logFC, main=mn,
+#   xlab = "Log2 Gene Length (exon-union)",
+#   ylab = yl,
+#   pch = ifelse(
+#     deg.et[,"Avg1"] == 0,
+#     1,
+#     ifelse(deg.et[,"Avg2"] == 0, 1, 16)
+#   ),
+#   col=ifelse(abs(deg.et$logFC)> 1 & deg.et$FDR < 0.05, "red","black")
+# )
+# 
+# # Add Correlation Coefficients to tests
+# ct=cor.test(deg.et$logFC, log(deg.et$eu_length,2), method="spearman")
+# rho=paste("rho:", round(ct$estimate,3))
+# sig=paste("p value:", signif(ct$p.value,3), sep="")
+# abline(lm(deg.et$logFC~log(deg.et$eu_length,2)), col="red", lwd=2)
+# text(7,max(deg.et$logFC)-1,rho)
+# text(7,max(deg.et$logFC)-3,sig)
+# dev.off()
+# }
+# 
+# ## Generate GC Bias Plot
+# fn<-paste(
+#   respath,"/",prefix,"_",c,"_GC_Bias.png", sep=""
+# )
+# 
+# mn<-paste("GC Bias in ",c,sep='')
+# png(fn, width=6, height = 5, units="in", res=1200)
+# plot(
+#   x=deg.et$eu_gc, y=deg.et$logFC, main=mn,
+#   xlab = "Fractional GC content (exon-union)",
+#   ylab = yl,
+#   pch = ifelse(
+#     deg.et[,"Avg1"] == 0,
+#     1,
+#     ifelse(deg.et[,"Avg2"] == 0, 1, 16)
+#   ),
+#   col=ifelse(abs(deg.et$logFC)> 1 & deg.et$FDR < 0.05, "red","black")
+# )
+# 
+# ct=cor.test(deg.et$logFC, log(deg.et$eu_gc,2), method="spearman")
+# rho=paste("rho:", round(ct$estimate,3))
+# sig=paste("p value:", signif(ct$p.value,3), sep="")
+# abline(lm(deg.et$logFC~deg.et$eu_gc), col="red", lwd=2)
+# text(0.35,max(deg.et$logFC)-1,rho)
+# text(0.35,max(deg.et$logFC)-3,sig)
+# dev.off()
