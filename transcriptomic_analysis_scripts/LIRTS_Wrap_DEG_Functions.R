@@ -370,6 +370,63 @@ genPairwiseDegTable<-function(y, group1, group2, design){
   }
 }
 
+## Generate a DEG table using coefficients to a design matrix
+genDesignCoefDegTable<-function(y, design, coef, group_labels){
+  
+  # Print Experimental Design and samples associated with each coeffient
+  print(design)
+  for(i in c(1,coef)){
+    print(colnames(design)[i])
+    print(y$samples[which(design[,i] == 1),"label"])
+  }
+  
+  if(class(y) == "DGEGLM"){
+    print(coef)
+    return(
+      as.data.frame(
+        topTags(
+          glmQLFTest(y, coef=coef), n=Inf
+        )
+      ) %>% 
+        dplyr::mutate(
+          Test = "QLFTest",
+          Group_1 = group_labels[1], 
+          Group_2 = group_labels[2],
+          Avg1 = 2^((logCPM - (logFC/2)) - log2(eu_length/1000)),
+          Avg2 = 2^((logCPM + (logFC/2)) - log2(eu_length/1000))
+        ) %>%
+        dplyr::select(
+          Test, Group_1, Group_2,
+          gene_id, logFC, logCPM, PValue, FDR, 
+          Avg1, Avg2, !matches("_Avg_FPKM")
+        )
+    )
+  } else if(class(y) == "DGEList") {
+    print("Analysis Reqires a fitted model")
+    return(NULL)
+
+  } else if(class(y) == "MArrayLM"){
+    ebs <- eBayes(y)
+    return(
+      as.data.frame(
+        topTable(ebs, n=Inf)
+      ) %>% 
+        dplyr::mutate(
+          Test = "LimmaVoom",
+          Group_1 = group1, 
+          Group_2 = group2
+        ) %>%
+        dplyr::select(
+          Test, Group_1, Group_2,
+          gene_id, logFC, logCPM=AveExper, PValue=P.Value, FDR=adj.P.Val, 
+          Avg1 = as.name(paste0(group1, "_Avg_FPKM")),
+          Avg2 = as.name(paste0(group2, "_Avg_FPKM"))
+        )
+    )
+  }
+}
+
+
 
 # Iterate over a set of contrasts, generate DEG Tables, DEG Summary tables
 # Volcano plots and bias plots for each contrast. 
