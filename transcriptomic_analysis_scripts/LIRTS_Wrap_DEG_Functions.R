@@ -56,6 +56,61 @@ process_voom_ByDesign <- function(y, genes, design, rob=T, norm="TMM"){
   fit <- lmFit(v, design=design)
   return(list(dge=v, fit=fit))
 }
+############################ Plot Diagnostics ################################
+## Generate diagnostic plots. 
+diagnostic_plots <- function(
+  dgelist=dge, color_attrib="group", shape_attrib=NULL, 
+  respath="LIRTS_DEG_Analysis_results", prefix="DBI_Wildtype"
+){
+  # Colorblind friendly pallatte from 
+  # https://bconnelly.net/
+  
+  colors=c(
+    "#000000", "#E69F00", "#56B4E9", "#009E73",
+    "#F0E442", "#0072B2", "#D55E00", "#CC79A7"
+  )
+
+  png(
+    paste(
+      respath,"/",prefix,"_BCV_Plot.png", sep=""
+    )
+  )  
+  plotBCV(dge)                                              # BCV Plot
+  dev.off()
+  
+  # Plot sample projections in first two Principal Components
+  pca <-prcomp(t(cpm(dge, log=T)), scale=T)
+  fn <- paste(
+    respath,"/",prefix,"_PCA_Plot.png", sep=""
+  )
+  
+  if(is.null(color_attrib)){
+    ggsave(
+      fn,
+      autoplot(
+        pca, data=dge$samples,size=3
+      ), height =4, width=6
+    )
+  } else if(is.null(shape_attrib)){
+    ggsave(
+      fn,
+      autoplot(
+        pca, data=dge$samples,
+        colour="hours_pcs", size=3
+      ) + scale_color_manual(values=colors), 
+      height =4, width=6
+    )
+  } else {
+    ggsave(
+      fn,
+      autoplot(
+        pca, data=dge$samples,
+        colour="hours_pcs", shape="batch", size=3
+      ) + scale_color_manual(values=colors), 
+      height =4, width=6
+    )
+  }
+}
 
 ######## Split and Process DGE List based on a set of sample groups ##########
 subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
