@@ -21,7 +21,7 @@ library('edgeR')
 
 synapser::synLogin()
 syn_project <- "syn25579691"                 ## Synapse ID for this project
-syn_count_dir <- "syn25976327"               ## Synapse folder with counts
+syn_count_dir <- "syn25979754"               ## Synapse folder with counts
 syn_code_dir <- "syn25976329"                ## Synapse folder with code
 syn_sample_table <- "syn25582010"            ## Synapse sample table
 syn_gene_meta <- "syn25976328"               ## Gene Annotations

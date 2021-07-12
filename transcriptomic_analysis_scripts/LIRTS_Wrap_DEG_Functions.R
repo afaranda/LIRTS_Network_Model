@@ -31,7 +31,7 @@ process_edgeR_ByDesign <- function(y, genes=NULL, design, rob=T, norm="TMM"){
   return(list(dge=y, fit=fit))
 }
 
-process_voom_ByDesign <- function(y, genes, design, rob=T, norm="TMM"){
+process_voom_ByDesign <- function(y, genes=NULL, design, rob=T, norm="TMM"){
   if(is.null(genes)){
     y<-y[filterByExpr(y, design), ,keep.lib.sizes=F] # Drop low features
   } else {
@@ -398,7 +398,7 @@ genDesignCoefDegTable<-function(y, design, coef, group_labels){
         dplyr::select(
           Test, Group_1, Group_2,
           gene_id, logFC, logCPM, PValue, FDR, 
-          Avg1, Avg2, !matches("_Avg_FPKM")
+          Avg1, Avg2
         )
     )
   } else if(class(y) == "DGEList") {
@@ -408,19 +408,20 @@ genDesignCoefDegTable<-function(y, design, coef, group_labels){
   } else if(class(y) == "MArrayLM"){
     ebs <- eBayes(y)
     return(
-      as.data.frame(
-        topTable(ebs, n=Inf)
+      x <- as.data.frame(
+        topTable(ebs, n=Inf, coef=coef)
       ) %>% 
         dplyr::mutate(
           Test = "LimmaVoom",
-          Group_1 = group1, 
-          Group_2 = group2
+          Group_1 = group_labels[1], 
+          Group_2 = group_labels[2],
+          Avg1 = 2^((AveExpr - (logFC/2)) - log2(eu_length/1000)),
+          Avg2 = 2^((AveExpr + (logFC/2)) - log2(eu_length/1000))
         ) %>%
         dplyr::select(
           Test, Group_1, Group_2,
-          gene_id, logFC, logCPM=AveExper, PValue=P.Value, FDR=adj.P.Val, 
-          Avg1 = as.name(paste0(group1, "_Avg_FPKM")),
-          Avg2 = as.name(paste0(group2, "_Avg_FPKM"))
+          gene_id, logFC, logCPM=AveExpr, PValue=P.Value, FDR=adj.P.Val, 
+          Avg1, Avg2
         )
     )
   }
@@ -428,8 +429,8 @@ genDesignCoefDegTable<-function(y, design, coef, group_labels){
 
 
 
-# Iterate over a set of contrasts, generate DEG Tables, DEG Summary tables
-# Volcano plots and bias plots for each contrast. 
+# Iterate over a set of contrasts, generate DEG Tables and
+#  DEG Summary tables for each contrast. 
 iterate_edgeR_pairwise_contrasts <- function(
   dge, fit, cntmat=cntmat, df=df, design=design,
   deg=deg,respath="LIRTS_DEG_Analysis_results",
@@ -492,6 +493,50 @@ iterate_edgeR_pairwise_contrasts <- function(
       Avg2 = pair[2]
     )
     dg$contrast<-c
+    dg$test<-"QLFTest"
+    df<-bind_rows(df, dg)
+    
+  }
+  return(list(df, deg))
+}
+
+
+# Iterate over a set of design matrix coefficients, 
+# generate DEG Tables, DEG Summary tables
+iterate_edgeR_design_coefficients <- function(
+  dge, fit, coefs=c(2,3), df=df, design=design, deg=deg,
+  respath="LIRTS_DEG_Analysis_results", prefix="DBI", 
+  group_label_list=list(c("ctrl", "trt"), c("mut", "wt"))
+){
+  print(group_label_list)
+  for (c in 1:length(coefs)) {             
+    deg.qt<-genDesignCoefDegTable(
+      fit, design, coef=coefs[c], 
+      group_labels = group_label_list[[c]]
+    )
+    
+    deg <- bind_rows(
+      deg, deg.qt %>%
+        mutate(Samples=prefix) %>%
+        tibble::remove_rownames()
+    )
+    
+    # Save DEG Tables
+    fn<-paste(
+      respath,"/",prefix,"_",c,"_QLFTest_DEG.csv", sep=""
+    )
+    write.table(
+      deg.qt, fn, col.names=T, quote = F, sep="\t", row.names = F
+    )
+    
+    dg<-degSummary(                         # Generate QLF Test Summary tables 
+      deg.qt,
+      lfc = "logFC",
+      fdr = 'FDR', 
+      Avg1 = "Avg1",
+      Avg2 = "Avg2"
+    )
+    dg$contrast<-colnames(design)[coefs[c]]
     dg$test<-"QLFTest"
     df<-bind_rows(df, dg)
     
