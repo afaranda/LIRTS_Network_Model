@@ -284,7 +284,7 @@ process_selected_features <- function(
   if(!is.null(counts)){
     dge$counts <- counts
   }
-  obj <- process_edgeR_ByDesign(dge, genes.batch, design=design)
+  obj <- process_edgeR_ByDesign(y=dge, genes=genes, design=design)
   diagnostic_plots(
     obj$dge, prefix = prefix, 
     color_attrib = color_attrib,
