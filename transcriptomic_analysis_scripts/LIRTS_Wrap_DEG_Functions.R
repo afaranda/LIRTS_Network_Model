@@ -66,7 +66,7 @@ diagnostic_plots <- function(
   
   colors=c(
     "#000000", "#E69F00", "#56B4E9", "#009E73",
-    "#F0E442", "#0072B2", "#D55E00", "#CC79A7"
+    "#0072B2", "#D55E00", "#CC79A7"
   )
 
   png(
@@ -110,6 +110,8 @@ diagnostic_plots <- function(
     )
   }
 }
+
+
 
 ######## Split and Process DGE List based on a set of sample groups ##########
 subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
@@ -271,6 +273,58 @@ subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
   } else {
     return(y)
   }
+}
+
+process_selected_features <- function(
+  dge, design, genes=NULL, counts=NULL, 
+  prefix="Global_Wildtype_Top_Genes",
+  color_attrib="hours_pcs", 
+  shape_attrib = "batch"
+){
+  if(!is.null(counts)){
+    dge$counts <- counts
+  }
+  obj <- process_edgeR_ByDesign(dge, genes.batch, design=design)
+  diagnostic_plots(
+    obj$dge, prefix = prefix, 
+    color_attrib = color_attrib,
+    shape_attrib = shape_attrib
+  )
+  fpkm<-as.data.frame(
+    rpkm(
+      obj$dge, gene.length="eu_length", log=T,
+      normalized.lib.sizes = T
+    )
+  )
+  colnames(fpkm) <- obj$dge$samples$label
+  
+  ## Plot samplewise correlation matrix after excluding genes with 
+  ## a strong batch response (DBI vs DNA1, DNA2 or DNA3)
+  cm <- cor(fpkm, method = "spearman")
+  annot <- obj$dge$samples[,c("hours_pcs", "batch", "label")]
+  annot <- annot %>%
+    tibble::remove_rownames()%>%
+    tibble::column_to_rownames("label")
+  
+  pheatmap(
+    cm, annotation_col =annot,
+    filename = paste0(
+      "LIRTS_DEG_Analysis_results/",
+      prefix, "_cormat.png"
+    ),height = 6, width=8
+  )
+  
+  ## Save FPKM matrix for genes with a significant batch dependent logFC
+  ## less than 2 (four fold difference) (DBI vs DNA1, DNA2 or DNA3)
+  fpkm$gene_id<-row.names(fpkm)
+  write.csv(
+    fpkm, row.names = F,
+    paste0(
+      "LIRTS_DEG_Analysis_results/",
+      prefix,"_TMM-FPKM_Matrix.csv"
+    )
+  )
+  return(obj)
 }
 
 #### Define function to generate DEG Tables from a fit or DGEList ############

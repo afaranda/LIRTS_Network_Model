@@ -113,7 +113,7 @@ wd<-getwd()
 
 synapser::synLogin()
 syn_project <- "syn25579691"                 ## Synapse ID for this project
-syn_count_dir <- "syn25976327"               ## Synapse folder with counts
+syn_count_dir <- "syn25979754"               ## Synapse folder with counts
 syn_code_dir <- "syn25976329"                ## Synapse folder with code
 syn_sample_table <- "syn25582010"            ## Synapse sample table
 syn_gene_meta <- "syn25976328"               ## Gene Annotations
@@ -185,6 +185,11 @@ obj <- process_edgeR_ByDesign(
   design=design
 )
 
+# Create Diagnostic Figures
+diagnostic_plots(
+  dge=obj$dge, prefix = "DBI_Wildtype"
+)
+
 ## Iterate over contrasts and prepare summaries / DEG tables
 df <- data.frame()
 deg <- data.frame()
@@ -196,56 +201,6 @@ res <- iterate_edgeR_pairwise_contrasts(
 write.csv(
   res[[1]],"LIRTS_DEG_Analysis_results/DBI_Experiment_DEG_Summary_Tables.csv"
 )
-
-## Generate diagnostic plots. 
-png("LIRTS_DEG_Analysis_results/DBI_Experiment_BCV_Plot.png")
-plotBCV(res[[1]])                                                 # BCV Plot
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DBI_Experiment_PCA_Plot.png",   # PCA Plot
-  width=600, height = 400
-)
-plotPrinComp(
-  cpm(res[[1]], log=T), ft=res[[1]]$samples,                  
-  idCol = 0, groupCol = 'group'
-)
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DBI_Experiment_MDS_Plot.png",  # MDS Plot
-  width=600, height=500
-)
-par(mar=c(8.5,5,4.1,2.1))
-plotMDS(
-  res[[1]], cex=1.5, cex.lab = 1.5,
-  cex.axis = 1.5, cex.main = 2,
-  pch = sapply(
-    res[[1]]$samples$hours_pcs, function(x) switch(
-      as.character(x),
-      `0H` = 15,
-      `24H` = 16,
-      `48H` = 17
-    )
-  ),
-  main = "DBI_Experiment",
-  col = sapply(
-    res[[1]]$samples$hours_pcs, function(x) switch(
-      as.character(x),
-      `0H` = "red",
-      `24H` = "blue",
-      `48H` = "black"
-    )
-  )
-)
-
-legend(
-  -3, -2, 
-  legend = unique(dge$samples$group), 
-  pch = 15:17, cex = 1.5,
-  col=c('red', 'blue','black'), xpd=T
-)
-dev.off()
 
 
 # DNA Link Analysis -- First Experiment ####
@@ -273,6 +228,11 @@ obj <- process_edgeR_ByDesign(
   design=design
 )
 
+# Create Diagnostic Figures
+diagnostic_plots(
+  dge=obj$dge, prefix = "DNA1_Wildtype"
+)
+
 ## Iterate over contrasts and prepare summary figures / tables
 df<-data.frame()
 deg <- res[[2]]
@@ -285,43 +245,6 @@ write.csv(
   res[[1]],
   "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_DEG_Summary_Tables.csv"
 )
-
-
-## Generate diagnostic plots. 
-png("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_BCV_Plot.png")
-plotBCV(dge)                                              # BCV Plot
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_PCA_Plot.png", 
-  width=600, height = 400
-)
-plotPrinComp(
-  cpm(dge, log=T), ft=dge$samples,                               # PCA Plot
-  idCol = 0, groupCol = 'group'
-)
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_1_MDS_Plot.png",           # MDS Plot
-  height = 500, width=600
-)
-par(mar=c(8.5,5,4.1,2.1))
-plotMDS(
-  dge, cex=1.5, cex.lab = 1.5,
-  cex.axis = 1.5, cex.main = 2,
-  pch = rep(15:18, each=3),
-  main = "DNA_Link_Experiment_1",
-  col = rep(c('red', 'blue','black'), each=3)
-)
-legend(
-  -2, -2.65, 
-  legend = unique(dge$samples$group), 
-  pch = 15:17, cex =1.5,
-  col=c('red', 'blue','black'), xpd=T
-)
-dev.off()
-
 
 
 # DNA Link Analysis --  Second Experiment ####
@@ -342,161 +265,29 @@ cntmat<-makeContrasts(
   levels = design
 )
 
-# Remove low count features, estimate size factors & dispersion
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] 
-dge<-calcNormFactors(dge)                   
-dge<-estimateDisp(dge, design, robust = T)
+# Normalize DGEList and fit model
+obj <- process_edgeR_ByDesign(
+  dge,
+  design=design
+)
 
-rbg<-as.data.frame(                            # Add Group Mean FPKMs
-  rpkmByGroup(dge, gene.length = "eu_length")
-) 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
+# Create Diagnostic Figures
+diagnostic_plots(
+  dge=obj$dge, prefix = "DNA2_Wildtype"
 )
-row.names(dge$genes)<-dge$genes$gene_id
-
-fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
-qlf<-glmQLFTest(fit, contrast = cntmat)
-deg<-as.data.frame(topTags(qlf, n=Inf))
-
-## Generate diagnostic plots. 
-png("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_BCV_Plot.png")
-plotBCV(dge)                       # BCV Plot
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_PCA_Plot.png", 
-  width=600, height = 400
-)
-plotPrinComp(
-  cpm(dge, log=T), ft=dge$samples,                               # PCA Plot
-  idCol = 0, groupCol = 'group'
-)
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_MDS_Plot.png",           # MDS Plot
-  width=600, height=500
-)
-par(mar=c(8,5,4.1,2.1))
-plotMDS(
-  dge, cex=1.5, cex.lab = 1.5,
-  cex.axis = 1.5, cex.main = 2,
-  pch = rep(15:16, each=3),
-  main = "DNA Link Experiment 2",
-  col = rep(c('red', 'blue'), each=3)
-)
-legend(
-  -3, -1.4, 
-  legend = unique(dge$samples$group), 
-  pch = 15:16, cex =1.5,
-  col=c('red', 'blue'), xpd=T
-)
-dev.off()
 
 ## Iterate over contrasts and prepare summary figures / tables
 df<-data.frame()
-for (c in colnames(cntmat)) {             
-  # Run Exact Tests
-  pair<-c(
-    names(cntmat[,c])[cntmat[,c] == -1], 
-    names(cntmat[,c])[cntmat[,c] == 1]
-  )
-  deg.et<-as.data.frame(topTags(exactTest(dge, pair = pair), n=Inf))
-  deg.qt<-as.data.frame(topTags(glmQLFTest(fit,contrast=cntmat[,c]), n=Inf))
-  fn<-paste("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_",c,"_Exact_Test_DEG.csv", sep="")
-  write.csv(deg.et, fn)
-  
-  fn<-paste("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_",c,"_QLFTest_DEG.csv", sep="")
-  write.csv(deg.qt, fn)
-  
-  # Generate volcano plots 
-  fn<-paste("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_",c,"_QLF_Volcano.png", sep="")
-  ggsave(
-    fn,
-    EnhancedVolcano(
-      toptable = deg.qt, 
-      lab = deg.qt$SYMBOL,
-      x = "logFC",
-      y="FDR",
-      ylim =  c(0, max(-log10(deg.qt[,'FDR']), na.rm=TRUE) + 2),
-      title = "DNA Link Experiment 2",
-      subtitle = c,
-      pCutoff = 0.05
-    )
-  )
-  
-  fn<-paste("LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_",c,"_Exact_Volcano.png", sep="")
-  ggsave(
-    fn,
-    EnhancedVolcano(
-      toptable = deg.et, 
-      lab = deg.et$SYMBOL,
-      x ="logFC",
-      y="FDR",
-      ylim =  c(0, max(-log10(deg.et[,'FDR']), na.rm=TRUE) + 2),
-      title = "DNA Link Experiment 2",
-      subtitle = c,
-      pCutoff = 0.05
-    )
-  )
-  
-  dg<-degSummary(                         # Generate QLF Test Summary tables 
-    deg.qt,
-    lfc = "logFC",
-    fdr = 'FDR', 
-    Avg1 = rownames(cntmat)[cntmat[,c] !=0][1],
-    Avg2 = rownames(cntmat)[cntmat[,c] !=0][2]
-  )
-  dg$contrast<-c
-  dg$test<-"QLFTest"
-  df<-bind_rows(df, dg)
-  print(names(deg.et))
-  
-  dg<-degSummary(                         # Generate Exact Test Summary tables
-    deg.et,
-    lfc = 'logFC',
-    fdr = 'FDR', 
-    Avg1 = rownames(cntmat)[cntmat[,c] !=0][1],
-    Avg2 = rownames(cntmat)[cntmat[,c] !=0][2]
-  )
-  dg$contrast<-c
-  dg$test<-"Exact Test"
-  df<-bind_rows(df, dg)
-  
-  # Generate Length Bias Plots
-  fn<-paste(
-    "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_",
-    c,"_Length_Bias.png", sep=""
-  )
-  mn<-paste("Length Bias in ",c,sep='')
-  yl <-paste(                                    # Construct y axis label
-    "Log2 Fold Change in", pair[2],          
-    "vs",pair[1]
-  )
-  png(fn, width=6, height = 5, units="in", res=1200)
-  plot(
-    x=log(deg.et$eu_length,2), y=deg.et$logFC, main=mn,
-    xlab = "Log2 Gene Length (exon-union)",
-    ylab = yl,
-    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
-  )
-  
-  # Add Correlation Coefficients to tests
-  ct=cor.test(deg.et$logFC, log(deg.et$eu_length,2), method="spearman")
-  rho=paste("rho:", round(ct$estimate,3))
-  sig=paste("p value:", signif(ct$p.value,3), sep="")
-  abline(lm(deg.et$logFC~log(deg.et$eu_length,2)), col="red", lwd=2)
-  text(6.5,max(deg.et$logFC)-1,rho)
-  text(7,max(deg.et$logFC)-3,sig)
-  dev.off()
-  
-}
+deg <- res[[2]]
+res <- iterate_edgeR_pairwise_contrasts(
+  obj[[1]], obj[[2]], cntmat, df=df, design=design,
+  deg=deg, prefix="DNA2_Wildtype"
+)
 
-write.csv(df,"LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_DEG_Summary_Tables.csv")
-write.csv(deg,"LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_QLFTest_DEG.csv")
+write.csv(
+  res[[1]],
+  "LIRTS_DEG_Analysis_results/DNA_Link_Experiment_2_DEG_Summary_Tables.csv"
+)
 
 # 0 vs 24 Hours at 2 labs -- Wildtype Time Series ####
 dge<-master[,
@@ -507,217 +298,50 @@ dge<-master[,
 
 dge$samples$hours_pcs<-droplevels(dge$samples$hours_pcs)
 dge$samples$batch<-droplevels(factor(dge$samples$batch))
+dge$samples$genotype<-droplevels(factor(dge$samples$genotype))
 
+# Define Experimental Design: Interval, Batch, and Batch Interaction.
+design<-model.matrix(~hours_pcs*batch, dge$samples)     
 
-design<-model.matrix(~0+group, dge$samples)     # Define Experimental Design
-colnames(design)<-gsub(
-  'group', '', 
-  colnames(design)
+# Normalize DGEList and fit model
+obj <- process_edgeR_ByDesign(
+  dge, design=design
 )
 
-cntmat<-makeContrasts(
-  WT24vs0H = (WT_24H_DBI + WT_24H_DNA1) - (WT_0H_DBI + WT_0H_DNA1),
-  DNAvsDBI = (WT_0H_DNA1 + WT_24H_DNA1) - (WT_24H_DBI + WT_0H_DBI ),
-  WT0H_DNAvsDBI = WT_0H_DNA1 - WT_0H_DBI,
-  WT24H_DNAvsDBI = WT_24H_DNA1 - WT_24H_DBI,
-  DBI_24vs0 = WT_24H_DBI - WT_0H_DBI,
-  DNA_24vs0 = WT_24H_DNA1 - WT_0H_DNA1,
-  levels = design
+# Create Diagnostic Figures
+diagnostic_plots(
+  dge=obj$dge, prefix = "24_Hour_LabComp",
+  color_attrib = "hours_pcs", shape_attrib = "batch"
 )
-
-
-dge<-dge[filterByExpr(dge, design), ,keep.lib.sizes=F] # drop low features
-dge<-calcNormFactors(dge)                    # Factors & Dispersion
-dge<-estimateDisp(dge, design, robust = T)
-
-rbg<-as.data.frame(                            # Add Group Mean FPKMs
-  rpkmByGroup(dge, gene.length = "eu_length")
-) 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
-)
-row.names(dge$genes)<-dge$genes$gene_id
-
-fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
-qlf<-glmQLFTest(fit, contrast = cntmat)
-deg<-as.data.frame(topTags(qlf, n=Inf))
-
-## Generate diagnostic plots. 
-png(
-  "LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_BCV_Plot.png"
-)
-plotBCV(dge)                                              # BCV Plot
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_PCA_Plot.png", 
-  width=600, height = 400
-)
-plotPrinComp(
-  cpm(dge, log=T), ft=dge$samples,                               # PCA Plot
-  idCol = 0, groupCol = 'group'
-)
-dev.off()
-
-png(
-  "LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_MDS_Plot.png",       # MDS Plot
-  width = 600, height = 500
-)
-par(mar=c(10,5,4.1,2.1))
-plotMDS(
-  dge, cex=1.5, cex.lab = 1.5,
-  cex.axis = 1.5, cex.main = 2,
-  pch = rep(15:18, each=3),
-  main = "24 vs 0 Hours at DBI and DNA Link",
-  col = rep(c('red', 'blue','green4','black'), each=3)
-)
-legend(
-  -3.4, -3.3, 
-  legend = unique(dge$samples$group), 
-  pch = 15:18, cex =1.5,
-  col=c('red', 'blue','green4','black'), xpd=T
-)
-dev.off()
 
 ## Iterate over contrasts and prepare summary figures / tables
 df<-data.frame()
-for (c in colnames(cntmat)) {             
-  # Run Exact Tests
-  pair<-c(
-    names(cntmat[,c])[cntmat[,c] == -1], 
-    names(cntmat[,c])[cntmat[,c] == 1]
+deg <- res[[2]]
+res <- iterate_edgeR_design_coefficients(
+  obj[[1]], obj[[2]], coefs=c(2,3,4), df=df, design=design,
+  deg=deg, prefix="24_Hour_LabComp", group_label_list = list(
+    c("0H", "24H"), c("DBI", "DNA1"), c("Intercept", "InxDNA1_24H")
   )
-  g<-dge$samples$group
-  if(c == 'WT24vs0H'){
-    dge$samples$group <- factor(
-      dge$samples$hours_pcs,
-      levels = c("0H", "24H")
-    )
-    deg.et<-as.data.frame(
-      topTags(exactTest(dge, pair = c("0H", "24H")), n=Inf)
-    )
-    dge$samples$group<-g
-  } else if(c == 'DNAvsDBI'){
-    dge$samples$group <- factor(
-      dge$samples$batch,
-      levels = c("DBI", "DNA1")
-    )
-    deg.et<-as.data.frame(
-      topTags(exactTest(dge, pair = c("DBI", "DNA1")), n=Inf)
-    )
-    dge$samples$group<-g
-  } else {
-    pair<-c(
-      names(cntmat[,c])[cntmat[,c] == -1], 
-      names(cntmat[,c])[cntmat[,c] == 1]
-    )
-    deg.et<-as.data.frame(
-      topTags(exactTest(dge, pair = pair), n=Inf)
-    )
-  }
-  deg.qt<-as.data.frame(topTags(glmQLFTest(fit,contrast=cntmat[,c]), n=Inf))
-  fn<-paste("LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",c,"_Exact_Test_DEG.csv", sep="")
-  write.csv(deg.et, fn)
-  
-  fn<-paste("LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",c,"_QLFTest_DEG.csv", sep="")
-  write.csv(deg.qt, fn)
-  
-  # Generate volcano plots 
-  fn<-paste("LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",c,"_QLF_Volcano.png", sep="")
-  ggsave(
-    fn,
-    EnhancedVolcano(
-      toptable = deg.qt, 
-      lab = deg.qt$SYMBOL,
-      x = "logFC",
-      y="FDR",
-      ylim =  c(0, max(-log10(deg.qt[,'FDR']), na.rm=TRUE) + 2),
-      title = "24 vs 0 Hour Lab Comparison",
-      subtitle = c,
-      pCutoff = 0.05
-    )
-  )
-  
-  fn<-paste("LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",c,"_Exact_Volcano.png", sep="")
-  ggsave(
-    fn,
-    EnhancedVolcano(
-      toptable = deg.et, 
-      lab = deg.et$SYMBOL,
-      x ="logFC",
-      y="FDR",
-      ylim =  c(0, max(-log10(deg.et[,'FDR']), na.rm=TRUE) + 2),
-      title = "24 vs 0 Hour Lab Comparison",
-      subtitle = c,
-      pCutoff = 0.05
-    )
-  )
-  
-  dg<-degSummary(                         # Generate QLF Test Summary tables 
-    deg.qt,
-    lfc = "logFC",
-    fdr = 'FDR', 
-    Avg1 = rownames(cntmat)[cntmat[,c] !=0][1],
-    Avg2 = rownames(cntmat)[cntmat[,c] !=0][2]
-  )
-  dg$contrast<-c
-  dg$test<-"QLFTest"
-  df<-bind_rows(df, dg)
-  print(names(deg.et))
-  
-  dg<-degSummary(                         # Generate Exact Test Summary tables
-    deg.et,
-    lfc = 'logFC',
-    fdr = 'FDR', 
-    Avg1 = rownames(cntmat)[cntmat[,c] !=0][1],
-    Avg2 = rownames(cntmat)[cntmat[,c] !=0][2]
-  )
-  dg$contrast<-c
-  dg$test<-"Exact Test"
-  df<-bind_rows(df, dg)
-  
-  # Generate Length Bias Plots
-  fn<-paste(
-    "LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_",
-    c,"_Length_Bias.png", sep=""
-  )
-  mn<-paste("Length Bias in ",c,sep='')
-  yl <-paste(                                    # Construct y axis label
-    "Log2 Fold Change in", pair[2],          
-    "vs",pair[1]
-  )
-  
-  png(fn, width=6, height = 5, units="in", res=1200)
-  plot(
-    x=log(deg.et$eu_length,2), y=deg.et$logFC, main=mn,
-    xlab = "Log2 Gene Length (exon-union)",
-    ylab = yl,
-    col = ifelse(abs(deg.et$logFC) > 1 & deg.et$FDR < 0.05, "red", "black")
-  )
-  
-  # Add Correlation Coefficients to tests
-  ct=cor.test(deg.et$logFC, log(deg.et$eu_length,2), method="spearman")
-  rho=paste("rho:", round(ct$estimate,3))
-  sig=paste("p value:", signif(ct$p.value,3), sep="")
-  abline(lm(deg.et$logFC~log(deg.et$eu_length,2)), col="red", lwd=2)
-  text(6.5,max(deg.et$logFC)-1,rho)
-  text(7,max(deg.et$logFC)-3,sig)
-  dev.off()
-}
+)
 
-write.csv(df,"LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_DEG_Summary_Tables.csv")
-write.csv(deg,"LIRTS_DEG_Analysis_results/24vs0_Hour_Lab_Comparison_QLFTest_DEG.csv")
-
+write.csv(
+  res[[1]],
+  paste0(
+    "LIRTS_DEG_Analysis_results/",
+    "24vs0_Hour_Lab_Comparison_DEG_Summary_Tables.csv"
+  )
+)
 
 # Global Analysis -- Wildtype Time Series ####
 
-# Get batch subsets to find equally represented genes
-### Todo -- CHANGE THIS TO DNA vs DBI -- the differences are
-### Likely more related to sequencing methodology!!!
+## Setup library variable (as that seems to be the main batch effect driver)
+master$samples$library <- factor(
+  ifelse(master$samples$batch == "DBI", "single", "paired"),
+  levels=c("single", "paired")
+)
 
-
+## Extract a set of genes that are minimally detected under both library
+## preparation schemes.
 genes <- master$genes$gene_id
 for(b in unique(master$samples$library)){
   dge<-master[,
@@ -728,8 +352,8 @@ for(b in unique(master$samples$library)){
     dge$samples$hours_pcs
   )
   print(unique(dge$samples$library))
-  design<-model.matrix(~interval, dge$samples)    
-  colnames(design)<-gsub("interval", '', colnames(design))
+  design<-model.matrix(~hours_pcs, dge$samples)    
+  colnames(design)<-gsub("hours_pcs", '', colnames(design))
   
   genes<-intersect(
     genes,
@@ -737,149 +361,52 @@ for(b in unique(master$samples$library)){
   )
   print(length(genes))
 }
+dge <- master[,master$samples$genotype=="WT"]
 
-dge<-master[, master$samples$genotype == 'WT']    # Select Samples
-dge$samples$group<-droplevels(  
-  dge$samples$hours_pcs
+# Define Experimental Design (full model)
+design<-model.matrix(~batch + hours_pcs, dge$samples)   
+#colnames(design)<-gsub("hours_pcs", '', colnames(design))
+
+obj <- process_edgeR_ByDesign(
+  dge, genes = genes,
+  design = design
 )
 
-
-# Define Experimental Design
-design<-model.matrix(~interval + batch, dge$samples)    
-colnames(design)<-gsub("interval", '', colnames(design))
-
-dge<-dge[genes, ,keep.lib.sizes=F] 
-dge<-calcNormFactors(dge)                    # Factors & Dispersion
-dge<-estimateDisp(dge, design, robust = T)
-
-rbg<-as.data.frame(                            # Add Group Mean FPKMs
-  rpkmByGroup(dge, gene.length = "eu_length")
-) 
-rbg$gene_id<-row.names(rbg)
-dge$genes<-merge(
-  dge$genes, rbg,
-  by='gene_id'
+# Iterate over model coefficients and generate DEG tables
+df<-data.frame()
+deg <- data.frame()
+res <- iterate_edgeR_design_coefficients(
+  obj[[1]], obj[[2]], coefs=5:9, df=df, design=design,
+  deg=deg, prefix="Global_Wildtype", group_label_list = list(
+    c("0H", "6H"), c("0H", "24H"),c("0H", "48H"), c("0H", "72H"),
+    c("0H", "120H")
+  )
 )
-row.names(dge$genes)<-dge$genes$gene_id
 
-# Get FPKM for individual samples
+# Identify genes with a significant batch dependent fold change
+# between DBI samples and the three DNA Link Batches
+bat<-glmQLFTest(obj$fit, coef=2:4)          # Estimate Batch DE
+bdg<-as.data.frame(topTags(bat, n=Inf)) %>%
+  dplyr::select(gene_id, logCPM, PValue, FDR, matches("logFC"))
+
+
+
+# Get FPKM Matrix for individual samples
 fpkm<-as.data.frame(rpkm(dge, gene.length="eu_length"))
+colnames(fpkm) <- obj$dge$samples$label
 fpkm$gene_id<-row.names(fpkm)
 
-
-fit<-glmQLFit(dge, design, robust = T)  # Run Model and estimate DE
-qlf<-glmQLFTest(fit, coef=2:5)
-deg<-as.data.frame(topTags(qlf, n=Inf))
-
-bat<-glmQLFTest(fit, coef=6:7)          # Estimate Batch DE
-bdg<-as.data.frame(topTags(bat, n=Inf))
+makeContrasts(
+  DBIvsDNA1=Intercept - batchDNA1,
+  levels=design
+)
 
 ## Generate diagnostic plots. 
-png(
-  "LIRTS_DEG_Analysis_results/Global_Wildtype_BCV_Plot.png"
-)
-plotBCV(dge)                                              # BCV Plot
-dev.off()
-
-# Plot first two Principal Components
-pca <-prcomp(t(cpm(dge, log=T)), scale=T)
-ggsave(
-  "LIRTS_DEG_Analysis_results/Global_Wildtype_PCA_Plot.png",
-  autoplot(
-    pca, data=dge$samples,
-    colour="interval", shape="batch", size=3
-  ), height =4, width=6
-)
-
-png(
-  "LIRTS_DEG_Analysis_results/Global_Wildtype_MDS_Plot.png",                      # MDS Plot
-  width = 600, height = 500
-)
-par(mar=c(10,5,4.1,2.1))
-plotMDS(
-  dge, cex=1.5, cex.lab = 1.5,
-  cex.axis = 1.5, cex.main = 2,
-  pch = rep(15:19, each=3),
-  main = "All intervals, DBI and DNA Link",
-  col = rep(c('red', 'blue','green4','black', 'grey'), each=3)
-)
-legend(
-  -3.4, -3.3, 
-  legend = unique(dge$samples$group), 
-  pch = 15:19, cex =1.5,
-  col=c('red', 'blue','green4','black', 'grey'), xpd=T
-)
-dev.off()
 
 ## Iterate over contrasts and prepare summary figures / tables
 df<-data.frame()
-coefs=c(WT6='6H', WT24='24H', WT48='48H', WT120='120H')
-for (c in c('WT6', 'WT24', 'WT48', 'WT120')) {             
-  deg.qt<-as.data.frame(
-    topTags(glmQLFTest(fit, coef=coefs[c]), n=Inf)
-  )
+coefs=c(WT6='6H', WT24='24H', WT48='48H', WT72='72H', WT120='120H')
 
-  fn<-paste("LIRTS_DEG_Analysis_results/Global_Wildtype_",c,"_QLFTest_DEG.csv", sep="")
-  write.csv(deg.qt, fn)
-
-  fn<-paste(                                          # Generate volcano plots
-    "LIRTS_DEG_Analysis_results/Global_Wildtype_",c,
-    "vs0H_QLF_Volcano.png", sep=""
-  )
-  ggsave(
-    fn,
-    EnhancedVolcano(
-      toptable = deg.qt, 
-      lab = deg.qt$SYMBOL,
-      x = "logFC",
-      y="FDR",
-      ylim =  c(0, max(-log10(deg[,'FDR']), na.rm=TRUE) + 2),
-      title = "Global Wildtype Analysis",
-      subtitle = paste(c,"0H",sep="vs" ),
-      pCutoff = 0.05
-    )
-  )
-  names(deg.qt)[names(deg.qt) %in% c('0H', coefs[c])] <-c('WT0', c)
-  dg<-degSummary(                         # Generate QLF Test Summary tables
-    deg.qt,
-    lfc = "logFC",
-    fdr = 'FDR',
-    Avg1 = 'WT0',
-    Avg2 = c
-  )
-  dg$contrast<-paste(c,"0H", sep="vs")
-  dg$test<-"QLFTest"
-  df<-bind_rows(df, dg)
-  
-  # Generate Length Bias Plots
-  fn<-paste(
-    "LIRTS_DEG_Analysis_results/Global_Wildtype_",
-    c,"vs0H_Length_Bias.png", sep=""
-  )
-  mn<-paste("Length Bias in ",c,sep='')
-  yl <-paste(                                    # Construct y axis label
-    "Log2 Fold Change in", c,          
-    "vs 0H"
-  )
-  
-  png(fn, width=6, height = 5, units="in", res=1200)
-  plot(
-    x=log(deg.qt$eu_length,2), y=deg.qt$logFC, main=mn,
-    xlab = "Log2 Gene Length (exon-union)",
-    ylab = yl,
-    col = ifelse(abs(deg.qt$logFC) > 1 & deg.qt$FDR < 0.05, "red", "black")
-  )
-  
-  # Add Correlation Coefficients to tests
-  ct=cor.test(deg.qt$logFC, log(deg.qt$eu_length,2), method="spearman")
-  rho=paste("rho:", round(ct$estimate,3))
-  sig=paste("p value:", signif(ct$p.value,3), sep="")
-  abline(lm(deg.qt$logFC~log(deg.qt$eu_length,2)), col="red", lwd=2)
-  text(6.5,max(deg.qt$logFC)-1,rho)
-  text(7,max(deg.qt$logFC)-3,sig)
-  dev.off()
-  
-}
 ## Generate Time Series Plots for Selected Genes
 #List of Genes over which to tabulate time series
 # Un-comment genes that you would like to generate a table for
@@ -945,12 +472,12 @@ for (g in names(genes)){
     dge$samples, 
     reshape2::melt(fpkm %>% filter(gene_id == genes[g])) %>%
       filter(variable != "eu_length") %>%
-      dplyr::select(sample=variable, FPKM=value),
-    by="sample"
+      dplyr::select(label=variable, FPKM=value),
+    by="label"
   )
   plt$gene_symbol<-g
   plt$ensembl_id<-genes[g]
-  ggplot(plt, aes(x=hours.pcs, y=FPKM, group=interval)) + 
+  ggplot(plt, aes(x=hours_pcs, y=FPKM, group=hours_pcs)) + 
     geom_boxplot() + ggtitle(g)
   ggsave(
     filename=paste(
@@ -959,7 +486,7 @@ for (g in names(genes)){
     ), width=5, height=3
   )
   
-  ggplot(plt, aes(x=hours.pcs, y=FPKM, group=interval)) + 
+  ggplot(plt, aes(x=hours_pcs, y=FPKM, group=hours_pcs)) + 
     geom_point(aes(color=batch)) + ggtitle(g)
   ggsave(
     filename=paste(
