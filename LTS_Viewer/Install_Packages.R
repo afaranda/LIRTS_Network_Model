@@ -1,0 +1,7 @@
+install.packages('BiocManager')
+BiocManager::install('dplyr')
+BiocManager::install('shiny')
+BiocManager::install('edgeR')
+BiocManager::install('tidyr')
+BiocManager::install('ggfortify')
+BiocManager::install('pheatmap')
