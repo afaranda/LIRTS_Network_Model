@@ -1,12 +1,15 @@
 library(shiny)
 library(dplyr)
 library(pheatmap)
-setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_3_Oct_2020/LTS_Viewer")
+setwd("~/Documents/LEC_Time_Series/LTS_Viewer")
 source("load_global_wildtype.R")
 
 
-genes<-dge$genes$gene_id
-names(genes)<-dge$genes$SYMBOL
+gene_id_symbol<-gene_meta %>%
+  filter(gene_id %in% fpkm$gene_id & ! duplicated(SYMBOL)) %>%
+  select(gene_id, SYMBOL)
+genes <- gene_id_symbol$gene_id
+names(genes) <- gene_id_symbol$SYMBOL
 
 ui<-fluidPage(
   titlePanel("LEC Time Series Viewer"),
@@ -105,14 +108,14 @@ server <- function(input, output){
   finalInput <- reactive({
     switch(
       input$ptype,
-      Box=ggplot(dataInput(), aes(x=hours.pcs, y=fpkm, group=interval)) +
+      Box=ggplot(dataInput(), aes(x=hours_pcs, y=fpkm, group=hours_pcs)) +
         geom_boxplot() + ggtitle(input$gene) + theme(
           plot.title = element_text(size = 25),
           axis.title = element_text(size = 20),
           axis.text = element_text(size = 15)
         ),
       
-      Scatter=ggplot(dataInput(), aes(x=hours.pcs, y=fpkm, group=interval)) + 
+      Scatter=ggplot(dataInput(), aes(x=hours_pcs, y=fpkm, group=hours_pcs)) + 
         geom_point(aes(color=batch), size=5) + ggtitle(input$gene) + theme(
           plot.title = element_text(size = 25),
           legend.title = element_text(size = 15),
@@ -134,8 +137,8 @@ server <- function(input, output){
   
   output$tsTable <- renderTable({
     dataInput() %>% select(
-      sample, batch, interval, fpkm
-    ) %>% arrange(interval, batch)
+      sample, batch, hours_pcs, fpkm
+    ) %>% arrange(hours_pcs, batch)
   })
   
   output$tfClust<-renderPlot({
