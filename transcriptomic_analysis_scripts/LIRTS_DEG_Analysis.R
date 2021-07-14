@@ -80,10 +80,8 @@ setwd('~/Documents/LEC_Time_Series')
 library(dplyr)
 library(cluster)
 library(reshape2)
-library(org.Mm.eg.db)
 library(pheatmap)
-library(RColorBrewer)
-library(EnhancedVolcano)
+library(sva)
 library(synapser)
 wd<-getwd()
 
@@ -498,7 +496,7 @@ diagnostic_plots(
 df<-res[[1]]
 deg <- res[[2]]
 res <- iterate_edgeR_design_coefficients(
-  obj[[1]], obj[[2]], coefs=2:9, df=df, design=design,
+  obj[[1]], obj[[2]], coefs=2:4, df=df, design=design,
   deg=deg, prefix="Fn1_FactorInx", group_label_list = list(
     c("0H", "48H"), c("WT", "FN"),  c("Intercept", "Inx48H_FN")
   )
@@ -565,11 +563,11 @@ diagnostic_plots(
 df<-res[[1]]
 deg <- res[[2]]
 res <- iterate_edgeR_design_coefficients(
-  obj[[1]], obj[[2]], coefs=2:9, df=df, design=design,
+  obj[[1]], obj[[2]], coefs=2:4, df=df, design=design,
   deg=deg, prefix="Itgb8_FactorInx", group_label_list = list(
     c("0H", "24H"), c("WT", "B8"),  c("Intercept", "Inx24H_B8")
   )
 )
 
-
+save(res, file="LIRTS_DEG_Analysis_Results/LIRTS_Master_DEG_Table.Rdata")
 

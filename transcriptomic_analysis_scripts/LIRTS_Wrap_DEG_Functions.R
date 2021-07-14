@@ -10,6 +10,7 @@
 library(edgeR)
 library(dplyr)
 library(ggplot2)
+library(ggfortify)
 
 ############  Wrapper function to fit models to a design matrix  #############
 process_edgeR_ByDesign <- function(y, genes=NULL, design, rob=T, norm="TMM"){
