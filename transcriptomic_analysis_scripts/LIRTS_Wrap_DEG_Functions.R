@@ -96,7 +96,7 @@ diagnostic_plots <- function(
       fn,
       autoplot(
         pca, data=dge$samples,
-        colour="hours_pcs", size=3
+        colour=color_attrib, size=3
       ) + scale_color_manual(values=colors), 
       height =4, width=6
     )
@@ -105,7 +105,7 @@ diagnostic_plots <- function(
       fn,
       autoplot(
         pca, data=dge$samples,
-        colour="hours_pcs", shape="batch", size=3
+        colour=color_attrib, shape=shape_attrib, size=3
       ) + scale_color_manual(values=colors), 
       height =4, width=6
     )
@@ -515,14 +515,14 @@ iterate_edgeR_pairwise_contrasts <- function(
     
     # Save DEG Tables
     fn<-paste(
-      respath,"/",prefix,"_",c,"_Exact_Test_DEG.csv", sep=""
+      respath,"/",prefix,"_",c,"_Exact_Test_DEG.tsv", sep=""
     )
     write.table(
       deg.et, fn, col.names =T, quote = F, sep="\t", row.names = F
     )
     
     fn<-paste(
-      respath,"/",prefix,"_",c,"_QLFTest_DEG.csv", sep=""
+      respath,"/",prefix,"_",c,"_QLFTest_DEG.tsv", sep=""
     )
     write.table(
       deg.qt, fn, col.names=T, quote = F, sep="\t", row.names = F
@@ -578,7 +578,7 @@ iterate_edgeR_design_coefficients <- function(
     
     # Save DEG Tables
     fn<-paste(
-      respath,"/",prefix,"_",c,"_QLFTest_DEG.csv", sep=""
+      respath,"/",prefix,"_",c,"_QLFTest_DEG.tsv", sep=""
     )
     write.table(
       deg.qt, fn, col.names=T, quote = F, sep="\t", row.names = F
