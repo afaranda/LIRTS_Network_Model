@@ -17,7 +17,7 @@ annotation_path <- paste0(
 
 # Find Synapse Project and push data to it
 syn_project <- Project(
-  name="LIRTS_Network_Model"
+  name="Lens_Injury_Response_Time_Series_(LIRTS)"
 )
 syn_project <- synStore(
   syn_project
@@ -28,7 +28,6 @@ syn_count_dir <- Folder(name="Counts", parent=syn_project)
 syn_count_dir <- synStore(
   syn_count_dir
 )
-
 
 # Add a gene metadata directory to the new project
 syn_gene_dir <- Folder(name="Gene_Metadata", parent=syn_project)
@@ -81,6 +80,19 @@ for(f in list.files(count_data_dir, pattern="_rf_GeneCount")){
     parent=synGet(syn_count_dir)
   )
   count_file <- synStore(count_file)
+  synSetProvenance(
+    count_file,
+    syn_act
+  )
+}
+
+# Add gene lists
+for(l in list.files(count_data_dir, pattern="Genelist.txt")){
+  list_file <- File(
+    path=paste(count_data_dir, f, sep="/"),
+    parent=synGet(syn_gene_dir)
+  )
+  list_file <- synStore(list_file)
   synSetProvenance(
     count_file,
     syn_act
