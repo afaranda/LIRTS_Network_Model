@@ -113,6 +113,64 @@ diagnostic_plots <- function(
 }
 
 
+### Generate a BCV plot, highlighting Flagged genes in red
+plot_BCV_flag<- function (
+  y, xlab = "Average log CPM", ylab = "Biological coefficient of variation", 
+  pch = 16, cex = 0.2, col.common = "grey", col.trend = "blue", 
+  col.tagwise = "black", flag=FALSE,...) 
+{
+  if (!is(y, "DGEList")) 
+    stop("y must be a DGEList.")
+  A <- y$AveLogCPM
+  if (is.null(A)) 
+    A <- aveLogCPM(y$counts, offset = getOffset(y))
+  disp <- getDispersion(y)
+  if (is.null(disp)) 
+    stop("No dispersions to plot")
+  if (attr(disp, "type") == "common") 
+    disp <- rep_len(disp, length(A))
+  plot(A, sqrt(disp), xlab = xlab, ylab = ylab, type = "n", 
+       ...)
+  labels <- cols <- lty <- pt <- NULL
+  if (!is.null(y$tagwise.dispersion)) {
+    points(A, sqrt(y$tagwise.dispersion), pch = pch, #cex = cex, 
+           col = ifelse(
+             flag,
+             "red", "black"
+           ),
+           cex=ifelse(
+             flag,
+             0.5, 0.2
+           )
+    )
+    labels <- c(labels, "Tagwise")
+    cols <- c(cols, col.tagwise)
+    lty <- c(lty, -1)
+    pt <- c(pt, pch)
+  }
+  if (!is.null(y$common.dispersion)) {
+    abline(h = sqrt(y$common.dispersion), col = col.common, 
+           lwd = 2)
+    labels <- c(labels, "Common")
+    cols <- c(cols, col.common)
+    lty <- c(lty, 1)
+    pt <- c(pt, -1)
+  }
+  if (!is.null(y$trended.dispersion)) {
+    o <- order(A)
+    lines(A[o], sqrt(y$trended.dispersion)[o], col = col.trend, 
+          lwd = 2)
+    labels <- c(labels, "Trend")
+    cols <- c(cols, col.trend)
+    lty <- c(lty, 1)
+    pt <- c(pt, -1)
+  }
+  legend("topright", legend = labels, lty = lty, pch = pt, 
+         pt.cex = cex, lwd = 2, col = cols)
+  invisible()
+}
+
+
 
 ######## Split and Process DGE List based on a set of sample groups ##########
 subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
