@@ -75,7 +75,7 @@ diagnostic_plots <- function(
       respath,"/",prefix,"_BCV_Plot.png", sep=""
     )
   )  
-  plotBCV(obj$dge)                                              # BCV Plot
+  plotBCV(dge)                                              # BCV Plot
   dev.off()
   
   # Plot sample projections in first two Principal Components
@@ -116,8 +116,8 @@ diagnostic_plots <- function(
 ### Generate a BCV plot, highlighting Flagged genes in red
 plot_BCV_flag<- function (
   y, xlab = "Average log CPM", ylab = "Biological coefficient of variation", 
-  pch = 16, cex = 0.2, col.common = "grey", col.trend = "blue", 
-  col.tagwise = "black", flag=FALSE,...) 
+  pch = 16, cex = c(0.2, 0.5), col.common = "grey", col.trend = "blue", 
+  cols.tagwise = c("red","black"), flag=FALSE, flag_labels=c("Tagwise - Key Gene","Tagwise Other Gene"),...) 
 {
   if (!is(y, "DGEList")) 
     stop("y must be a DGEList.")
@@ -140,13 +140,13 @@ plot_BCV_flag<- function (
            ),
            cex=ifelse(
              flag,
-             0.5, 0.2
+             cex[1], cex[2]
            )
     )
-    labels <- c(labels, "Tagwise")
-    cols <- c(cols, col.tagwise)
-    lty <- c(lty, -1)
-    pt <- c(pt, pch)
+    labels <- c(labels, flag_labels)
+    cols <- c(cols, cols.tagwise)
+    lty <- c(lty, -1, -1)
+    pt <- c(pt, pch, pch)
   }
   if (!is.null(y$common.dispersion)) {
     abline(h = sqrt(y$common.dispersion), col = col.common, 
@@ -166,11 +166,9 @@ plot_BCV_flag<- function (
     pt <- c(pt, -1)
   }
   legend("topright", legend = labels, lty = lty, pch = pt, 
-         pt.cex = cex, lwd = 2, col = cols)
+         pt.cex = cex + c(0,0.5), lwd = 2, col = cols)
   invisible()
 }
-
-
 
 ######## Split and Process DGE List based on a set of sample groups ##########
 subsetDGEListByGroups<-function(y, groups=c("GR1", "GR2"), norm="TMM"){
