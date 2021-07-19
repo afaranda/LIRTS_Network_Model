@@ -77,7 +77,7 @@ diagnostic_plots <- function(
   pdf(
     paste(
       respath,"/",prefix,"_BCV_Plot.pdf", sep=""
-    ), height=6, wdith=6
+    ), height=6, width=6
   )  
   plotBCV(dge)                                              # BCV Plot
   dev.off()
