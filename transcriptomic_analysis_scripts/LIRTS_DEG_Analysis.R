@@ -61,8 +61,10 @@
 #     DGEList, and call LIRTS_Push_Synapse.R if none exists                  #
 #                                                                            #
 #     July 10, 2021 Major Change -- Updated Genome to Ensembl v104 / GRCm39  #
-#
-#     July 11                                                                #
+#                                                                            #
+#     July 11 - 14, 2021 Major Refactoring                                   #
+#     Wrapped most analysis steps in helper functions in the script          #
+#     LIRTS_Wrap_DEG_Functions.R that are called from this script.           #
 #                                                                            #
 #     TODO:                                                                  #
 #     Define Synapse organization, and setup integration                     #
@@ -102,6 +104,12 @@ if(!dir.exists('LIRTS_DEG_Analysis_results'))
 {
   dir.create('LIRTS_DEG_Analysis_results')
 }
+
+## Analysis parameters for feature selection on global wildtype samples
+cpm_weight = 0.9           ## Weight applied to minimum cpm threshold
+trend_disp_weight = 1.7    ## Weight applied to trended dispersion threshold
+
+
 
 ########################### Fetch Master DGE List ############################
 
@@ -200,7 +208,7 @@ diagnostic_plots(
 )
 
 ## Iterate over contrasts and prepare DEG / summary tables
-df<-res[[1]]
+df <- res[[1]]
 deg <- res[[2]]
 res <- iterate_edgeR_pairwise_contrasts(
   obj[[1]], obj[[2]], cntmat, df=df, design=design,
@@ -320,27 +328,61 @@ design<-model.matrix(~library + hours_pcs, dge$samples)
 
 obj <- process_selected_features(
   dge=dge, design=design, genes=genes, color_attrib = "hours_pcs",
-  shape_attrib = "batch", prefix="Global_Wildtype"
+  shape_attrib = "batch", prefix="GWT_AllPresent"
 )
 
 # Iterate over model coefficients and generate DEG tables
-df<-data.frame()
-deg <- data.frame()
+df <- res[[1]]
+deg <- res[[2]]
 res <- iterate_edgeR_design_coefficients(
   obj[[1]], obj[[2]], coefs=2:7, df=df, design=design,
-  deg=deg, prefix="Global_Wildtype", group_label_list = list(
+  deg=deg, prefix="GWT_AllPresent", group_label_list = list(
     c("single", "paired"),c("0H", "6H"),
     c("0H", "24H"),c("0H", "48H"), c("0H", "72H"),c("0H", "120H")
   )
 )
 
 ## Construct Feature Selection Table
+
+# Fetch list of genes that we have previously considered important
+fn <- "Key_Injury_Response_Genelist.txt"
+key_lens_injury <- synFindEntityId(fn, parent = syn_gene_meta)
+if(file.exists(paste0("LIRTS_Raw_Data/",fn))){
+  key_lens_injury <- read.table(paste0("LIRTS_Raw_Data/", fn))[,1]
+} else{
+  synGet(
+    key_lens_injury, 
+    downloadLocation = "LIRTS_Raw_Data"
+  )
+  key_lens_injury <- read.table(paste0("LIRTS_Raw_Data/", fn))[,1]
+}
+
+# Fetch list of genes that are assigned to the GO term
+# Lens Development in Camera Type Eye
+fn <- "LensCameraTypeEye_GO_0002088_Genelist.txt"
+lens_dev <- synFindEntityId(fn, parent = syn_gene_meta)
+if(file.exists(paste0("LIRTS_Raw_Data/",fn))){
+  lens_dev <- read.table(paste0("LIRTS_Raw_Data/", fn))[,1]
+} else{
+  synGet(
+    lens_dev, 
+    downloadLocation = "LIRTS_Raw_Data"
+  )
+  lens_dev <- read.table(paste0("LIRTS_Raw_Data/", fn))[,1]
+}
+
+## Define a table with potential parameters for feature selection
 feature_selection <- obj$dge$genes %>% 
-  dplyr::select(gene_id, matches("_FPKM"))
-feature_selection$tagwise.dispersion <- obj$dge$tagwise.dispersion
-feature_selection <- feature_selection%>%
+  dplyr::select(gene_id, SYMBOL, matches("_FPKM")) %>%
+  mutate(
+    Tag_disp = obj$dge$tagwise.dispersion,
+    AveLogCPM = obj$dge$AveLogCPM,
+    lens_dev = ifelse(SYMBOL %in% lens_dev, TRUE, FALSE),
+    key_lens_injury = ifelse(SYMBOL %in% key_lens_injury, TRUE, FALSE),
+    Trend_disp=obj$dge$trended.dispersion
+  ) %>%
   inner_join(
-    res[[2]] %>% filter(Samples=="Global_Wildtype") %>%
+    res[[2]] %>% filter(Samples=="GWT_AllPresent") %>%
       mutate(Contrast=paste0(Group_2,"v", Group_1)) %>%
       dplyr::select(gene_id, Contrast, logFC, FDR) %>%
       tidyr::pivot_wider(
@@ -349,16 +391,190 @@ feature_selection <- feature_selection%>%
         values_from=c("logFC", "FDR")
       ) %>% as.data.frame(),
     by="gene_id"
+  ) %>%
+  mutate(
+    Sig_Any_Interval=(
+      abs(logFC_6Hv0H) > 1 & FDR_6Hv0H < 0.05)|
+      (abs(logFC_24Hv0H) > 1 & FDR_24Hv0H < 0.05)|
+      (abs(logFC_48Hv0H) > 1 & FDR_48Hv0H < 0.05)|
+      (abs(logFC_72Hv0H) > 1 & FDR_72Hv0H < 0.05)|
+      (abs(logFC_120Hv0H) > 1 & FDR_120Hv0H < 0.05)
   )
+
+## Check that all features where "Sig_Any_Interval == TRUE have
+## at least one observed absolute log2 fold change > 1
+print(
+  feature_selection %>%
+    filter(Sig_Any_Interval) %>%
+    select(gene_id, matches("logFC_[12467]")) %>%
+    rowwise() %>%
+    mutate(
+      MaxAbs=max(
+        abs(logFC_6Hv0H), 
+        abs(logFC_24Hv0H),
+        abs(logFC_48Hv0H),
+        abs(logFC_72Hv0H),
+        abs(logFC_120Hv0H)
+      )
+    ) %>% pull(MaxAbs) %>% min()
+)
+
+## Determine the minimum value of AveLogCPM for genes that we have 
+## previously queried, or lens development genes. 
+key_genes <- feature_selection %>%
+  filter(key_lens_injury  | lens_dev ) %>%
+  pull('gene_id')
+
+cpm_cut <- feature_selection%>%
+  filter(gene_id %in% key_genes & Sig_Any_Interval) %>%
+  pull("AveLogCPM") %>% min()
+
+
+## Add selection attribute to feature selection table (Values = TRUE, FALSE)
+feature_selection <- feature_selection %>%
+  mutate(
+    Selected = ifelse(
+      (AveLogCPM > cpm_cut *cpm_weight) & 
+        (Tag_disp > trend_disp_weight * Trend_disp),
+      TRUE, FALSE
+    )
+  )
+
+write.csv(
+  feature_selection,
+  file="LIRTS_DEG_Analysis_results/GWT_AllPresent_Feature_Selection_Table.csv"
+)
+
+## Highlight key genes with significant differential expression (lfc > 1)
+pdf(
+  file=paste0(
+    "LIRTS_DEG_Analysis_results/",
+    "GWT_AllPresent_LFC1_Significant_Key_Genes_BCV_Plot.pdf"
+  ), 
+  width = 6, height = 6
+)
+plot_BCV_flag(
+  obj$dge,
+  cex=c(1, 0.1),
+  flag=(
+    feature_selection$Sig_Any_Interval & 
+      feature_selection$gene_id %in% key_genes
+  ),
+  flag_labels = c("Tagwise - Key/Sig.", "Tagwise - Other")
+)
+dev.off()
+
+## Show genes with a strong response at any post-surgical interval
+pdf(
+  file="LIRTS_DEG_Analysis_results/GWT_LFC3_Significant_Genes_BCV_Plot.pdf", 
+  width = 6, height = 6
+)
+plot_BCV_flag(
+  obj$dge,
+  cex=c(1, 0.1),
+  flag=(
+    (abs(feature_selection$logFC_6Hv0H) > 3 & feature_selection$FDR_6Hv0H < 0.05)|
+      (abs(feature_selection$logFC_24Hv0H) > 3 & feature_selection$FDR_24Hv0H < 0.05)|
+      (abs(feature_selection$logFC_48Hv0H) > 3 & feature_selection$FDR_48Hv0H < 0.05)|
+      (abs(feature_selection$logFC_72Hv0H) > 3 & feature_selection$FDR_72Hv0H < 0.05)|
+      (abs(feature_selection$logFC_120Hv0H) > 3 & feature_selection$FDR_120Hv0H < 0.05)
+  ),
+  flag_labels = c("Tagwise - DEG", "Tagwise Other Gene"),
+  main="Genes with 8-fold or greater DE at any interval after 0H"
+)
+dev.off()
+
+
+## Query on "feature_selection Summary table for DEG counts at different
+## logFC thresholds.
+write.csv(
+  feature_selection %>%
+    select(
+      gene_id, matches("logFC_[12467]"),
+      matches("FDR_[12467]")
+    ) %>%
+    tidyr::pivot_longer(
+      cols=matches('(logFC|FDR)_[12467]'),
+      names_to=c(".value", "Interval"),
+      names_sep="_"
+    ) %>%
+    group_by(Interval) %>%
+    mutate(
+      Interval=factor(
+        gsub("logFC_","",Interval),
+        levels=c(
+          "6Hv0H",
+          "24Hv0H",
+          "48Hv0H",
+          "72Hv0H",
+          "120Hv0H",
+          "Any"
+        )
+      )
+    )%>%
+    summarise(
+      LogFC_1=sum(abs(logFC)>1 & FDR < 0.05),
+      LogFC_3=sum(abs(logFC)>3 & FDR < 0.05),
+      LogFC_5=sum(abs(logFC)>5 & FDR < 0.05)
+      
+    )%>%
+    bind_rows(
+      feature_selection %>%
+        select(
+          gene_id, matches("logFC_[12467]"),
+          matches("FDR_[12467]")
+        ) %>%
+        tidyr::pivot_longer(
+          cols=matches('(logFC|FDR)_[12467]'),
+          names_to=c(".value", "Interval"),
+          names_sep="_"
+        ) %>%
+        filter(FDR < 0.05) %>%
+        group_by(gene_id) %>%
+        filter(abs(logFC)==max(abs(logFC))) %>%
+        filter(row_number() ==1) %>%
+        group_by()%>%
+        summarise(
+          Interval= "Any",
+          LogFC_1 = sum(abs(logFC)>1),
+          LogFC_3 = sum(abs(logFC)>3),
+          LogFC_5 = sum(abs(logFC)>5)
+        )
+    ), 
+  file="LIRTS_DEG_Analysis_results/GWT_DEG_Count_Totals_by_lfc_threshold.csv"
+)
+
+process_selected_features(
+  dge, genes = feature_selection %>%filter(Selected) %>%pull("gene_id"),
+  design=design, prefix = "GWT_Selected"
+)
+
+pdf(
+  file=paste0(
+    "LIRTS_DEG_Analysis_results/",
+    "GWT_AllPresent_Selected_Genes_BCV_Plot.pdf"
+  ), 
+  width = 6, height = 6
+)
+plot_BCV_flag(
+  obj$dge,
+  cex=c(1, 0.1),
+  flag=(
+    feature_selection$Sig_Any_Interval & 
+      feature_selection$gene_id %in% key_genes
+  ),
+  flag_labels = c("Tagwise - Selected", "Tagwise - Other")
+)
+dev.off()
 
 ## Extract Genes in the top 50th percentile of tag-wise dispersion
 genes.disp <- feature_selection %>%
-  filter(tagwise.dispersion > quantile(tagwise.dispersion, 0.5)) %>% 
+  filter(Tag_disp > quantile(Tag_disp, 0.5)) %>% 
   pull("gene_id")
 
 process_selected_features(
   dge=dge, genes = genes.disp, design=design,
-  prefix="Global_Wildtype_Upper50_Disp"
+  prefix="GWT_Upper50_Disp"
 )
 
 ## Exclude genes with a significant difference between the DBI batch
@@ -386,23 +602,23 @@ genes.batch <-  feature_selection %>%
 
 process_selected_features(
   dge=dge, genes = setdiff(genes, genes.batch), design=design,
-  prefix="Global_Wildtype_NoBatchSig"
+  prefix="GWT_NoBatchSig"
 )
 
-## Select genes with a significant injury response at any interval
+## Select genes with an 8 fold injury response at any interval
 genes.injury <- feature_selection %>%
   filter(
-    (abs(logFC_6Hv0H) > 1 & FDR_6Hv0H < 0.05) |
-      (abs(logFC_24Hv0H) > 1 & FDR_24Hv0H < 0.05) |
-      (abs(logFC_48Hv0H) > 1 & FDR_48Hv0H < 0.05) |
-      (abs(logFC_72Hv0H) > 1 & FDR_72Hv0H < 0.05) |
-      (abs(logFC_120Hv0H) > 1 & FDR_120Hv0H < 0.05)
+    (abs(logFC_6Hv0H) > 3 & FDR_6Hv0H < 0.05) |
+      (abs(logFC_24Hv0H) > 3 & FDR_24Hv0H < 0.05) |
+      (abs(logFC_48Hv0H) > 3 & FDR_48Hv0H < 0.05) |
+      (abs(logFC_72Hv0H) > 3 & FDR_72Hv0H < 0.05) |
+      (abs(logFC_120Hv0H) > 3 & FDR_120Hv0H < 0.05)
   )%>%
   pull("gene_id")
 
 process_selected_features(
   dge=dge, genes = genes.injury, design=design,
-  prefix="Global_Wildtype_InjurySig"
+  prefix="GWT_InjurySig"
 )
 
 ## Use Combat-Seq to generate batch corrected counts
@@ -418,20 +634,180 @@ bat.counts <- ComBat_seq(
 )
 
 obj.bat <- process_selected_features(
-  dge=dge, genes = genes, design=design,
-  prefix="Global_Wildtype_CombatSeq",
+  dge=dge, genes = genes, design=design[,design.exp],
+  prefix="GWT_APCombatSeq",
   counts=bat.counts
 )
+
+df<-res[[1]]
+deg <-res[[2]]
+res <- iterate_edgeR_design_coefficients(
+  obj.bat[[1]], obj.bat[[2]], coefs=2:6, df=df, design=design[,design.exp],
+  deg=deg, prefix="GWT_APCombatSeq", group_label_list = list(
+    c("0H", "6H"),c("0H", "24H"),c("0H", "48H"),
+    c("0H", "72H"),c("0H", "120H")
+  )
+)
+
+## Define a table with potential parameters for feature selection
+feature_selection_bat <- obj.bat$dge$genes %>% 
+  dplyr::select(gene_id, SYMBOL, matches("_FPKM")) %>%
+  mutate(
+    Tag_disp = obj.bat$dge$tagwise.dispersion,
+    AveLogCPM = obj.bat$dge$AveLogCPM,
+    lens_dev = ifelse(SYMBOL %in% lens_dev, TRUE, FALSE),
+    key_lens_injury = ifelse(SYMBOL %in% key_lens_injury, TRUE, FALSE),
+    Trend_disp=obj.bat$dge$trended.dispersion
+  ) %>%
+  inner_join(
+    res[[2]] %>% filter(Samples=="GWT_APCombatSeq") %>%
+      mutate(Contrast=paste0(Group_2,"v", Group_1)) %>%
+      dplyr::select(gene_id, Contrast, logFC, FDR) %>%
+      tidyr::pivot_wider(
+        id_cols="gene_id",
+        names_from="Contrast",
+        values_from=c("logFC", "FDR")
+      ) %>% as.data.frame(),
+    by="gene_id"
+  ) %>%
+  mutate(
+    Sig_Any_Interval=(
+      abs(logFC_6Hv0H) > 1 & FDR_6Hv0H < 0.05)|
+      (abs(logFC_24Hv0H) > 1 & FDR_24Hv0H < 0.05)|
+      (abs(logFC_48Hv0H) > 1 & FDR_48Hv0H < 0.05)|
+      (abs(logFC_72Hv0H) > 1 & FDR_72Hv0H < 0.05)|
+      (abs(logFC_120Hv0H) > 1 & FDR_120Hv0H < 0.05)
+  )
+
+key_genes <- feature_selection_bat %>%
+  filter(key_lens_injury  | lens_dev ) %>%
+  pull('gene_id')
+
+cpm_cut <- feature_selection_bat %>%
+  filter(gene_id %in% key_genes & Sig_Any_Interval) %>%
+  pull("AveLogCPM") %>% min()
+
+
+## Add selection attribute to feature selection table (Values = TRUE, FALSE)
+feature_selection_bat <- feature_selection_bat %>%
+  mutate(
+    Selected = ifelse(
+      (AveLogCPM > cpm_cut *cpm_weight) & 
+        (Tag_disp > trend_disp_weight * Trend_disp),
+      TRUE, FALSE
+    )
+  )
+
+write.csv(
+  feature_selection,
+  file=paste0(
+    "LIRTS_DEG_Analysis_results/",
+    "GWT_APComBatSeq_Feature_Selection_Table.csv"
+  )
+)
+
+
+## Tabulate total number of DEG selected by thresholding on a multiple of the
+## trended dispersion (Tagwise > 1.7 X Trended)
+write.csv(
+  bind_rows(
+    feature_selection %>%
+      summarise(
+        Total_Selected = sum(Selected),
+        Total_Significant_DE = sum(
+          Selected & Sig_Any_Interval
+        )
+      ) %>%
+      mutate(
+        Correction="No Batch Correction"
+      ),
+    feature_selection_bat %>%
+      summarise(
+        Total_Selected = sum(Selected),
+        Total_Significant_DE = sum(
+          Selected & Sig_Any_Interval
+        )
+      ) %>%
+      mutate(
+        Correction="Batch Corrected"
+      ),
+    data.frame(
+      Total_Selected=length(
+        intersect(
+          feature_selection %>% filter(Selected) %>% pull("gene_id"),
+          feature_selection_bat %>% filter(Selected) %>% pull("gene_id")
+        )
+      ),
+      Total_Significant_DE=length(
+        intersect(
+          feature_selection %>% filter(Selected & Sig_Any_Interval)%>% 
+            pull("gene_id"),
+          feature_selection_bat %>% filter(Selected & Sig_Any_Interval) %>% 
+            pull("gene_id")
+        )
+      ),
+      Correction="In Both"
+    )
+  ),
+  file="LIRTS_DEG_Analysis_results/GWT_Selected_Features_Summary.csv"
+)
+
+process_selected_features(
+  dge, genes = feature_selection %>%filter(Selected) %>%pull("gene_id"),
+  design=design, prefix = "GWT_APComBatSeq_Selected",
+  counts=bat.counts
+)
+
+## Highlight key genes with significant differential expression (lfc > 1)
+pdf(
+  file=paste0(
+    "LIRTS_DEG_Analysis_results/",
+    "GWT_APComBatSeq_LFC1_Significant_Key_Genes_BCV_Plot.pdf"
+  ), 
+  width = 6, height = 6
+)
+plot_BCV_flag(
+  obj.bat$dge,
+  cex=c(1, 0.1),
+  flag=(
+    feature_selection_bat$Sig_Any_Interval & 
+      feature_selection_bat$gene_id %in% key_genes
+  ),
+  flag_labels = c("Tagwise - Selected", "Tagwise - Other")
+)
+dev.off()
 
 # Store Tagwise dispersions for batch corrected counts in 'twd'
 twd <- obj.bat$dge$tagwise.dispersion
 genes.bat.disp <- obj.bat$dge$genes$gene_id[twd > quantile(twd, 0.5)]
 process_selected_features(
   dge=dge, genes = genes.bat.disp, design=design,
-  prefix="Global_Wildtype_CombatSeq_Upper50_Disp",
+  prefix="GWT_CombatSeq_Upper50_Disp",
   counts=bat.counts
 )
 
+### Evaluate DNA-Link Only samples
+dge<-master[,
+            master$samples$genotype == 'WT' &                # Select Samples
+              master$samples$batch %in% c('DNA1', 'DNA2', 'DNA3')
+            ]
+dge$samples$hours_pcs<-droplevels(dge$samples$hours_pcs)
+dge$samples$batch<-droplevels(factor(dge$samples$batch))
+dge$samples$genotype<-droplevels(factor(dge$samples$genotype))
+
+# Define Experimental Design: Interval, Batch, and Batch Interaction.
+design<-model.matrix(~hours_pcs+batch, dge$samples)     
+
+# Normalize DGEList and fit model
+obj <- process_edgeR_ByDesign(
+  dge, design=design
+)
+
+# Create Diagnostic Figures
+diagnostic_plots(
+  dge=obj$dge, prefix = "DNA_LinkSamples",
+  color_attrib = "hours_pcs", shape_attrib = "batch"
+)
 
 ######################## Analyze Mutation effects ############################
 # DBI -- Fibronectin vs Wildtype 0 and 48 hours ####
@@ -466,7 +842,8 @@ obj <- process_edgeR_ByDesign(
 
 # Create Diagnostic Figures
 diagnostic_plots(
-  dge=obj$dge, prefix = "Fn1_Groupwise"
+  dge=obj$dge, prefix = "Fn1_Groupwise",
+  color_attrib = "hours_pcs", shape_attrib = "genotype"
 )
 
 ## Iterate over contrasts and prepare DEG / summary tables
@@ -533,7 +910,8 @@ obj <- process_edgeR_ByDesign(
 
 # Create Diagnostic Figures
 diagnostic_plots(
-  dge=obj$dge, prefix = "Itgb8_Groupwise"
+  dge=obj$dge, prefix = "Itgb8_Groupwise",
+  color_attrib = "hours_pcs", shape_attrib = "genotype"
 )
 
 ## Iterate over contrasts and prepare DEG / summary tables
@@ -571,3 +949,152 @@ res <- iterate_edgeR_design_coefficients(
 
 save(res, file="LIRTS_DEG_Analysis_Results/LIRTS_Master_DEG_Table.Rdata")
 
+###################### Push Analysis Results to Synapse ######################
+# Main Analysis Script
+syn_main_script <- File(
+  path="transcriptomic_analysis_scripts/LIRTS_DEG_Analysis.R",
+  parent=syn_code_dir
+)
+syn_main_script <- synStore(
+  syn_main_script
+)
+
+# Wrappers for DEG Analysis Functions
+syn_wrap_script <- File(
+  path="transcriptomic_analysis_scripts/LIRTS_Wrap_DEG_Functions.R",
+  parent=syn_code_dir
+)
+syn_wrap_script <- synStore(
+  syn_wrap_script
+)
+
+# Helper script for deg summaries
+syn_ovl_script <- File(
+  path="transcriptomic_analysis_scripts/Overlap_Comparison_Functions.R",
+  parent=syn_code_dir
+)
+syn_ovl_script <- synStore(
+  syn_ovl_script
+)
+
+## Construct activity to set provenance on
+syn_act <- Activity(
+  name="DEG_Analysis",
+  description=paste(
+    "Analyze various contrasts in the LIRTS",
+    "data set for differential expression"
+  ),
+  executed=c(
+    syn_main_script,
+    syn_wrap_script,
+    syn_ovl_script
+  ),
+  used=syn_dge
+)
+
+# Add a LIRTS_DEG_Tables Directory to store individual DEG Tables
+syn_fpkm_dir <- Folder(name="LIRTS_Expression_Matrices", parent=syn_project)
+syn_fpkm_dir <- synStore(
+  syn_fpkm_dir
+)
+
+for(f in list.files("LIRTS_DEG_Analysis_results/", pattern="FPKM_Matrix")){
+  syn_fpkm <- File(
+    path=paste0(
+      "LIRTS_DEG_Analysis_results/", f
+    ),
+    parent=syn_fpkm_dir
+  )
+  synStore(syn_fpkm, activity = syn_act)
+}
+
+# Add Feature Selection tables to the Genes folder
+for(
+  f in list.files(
+    "LIRTS_DEG_Analysis_results/", 
+    pattern="Feature_Selection_Table")
+){
+  syn_fst <- File(
+    path=paste0(
+      "LIRTS_DEG_Analysis_results/", f
+    ),
+    parent=syn_gene_meta
+  )
+  synStore(syn_fst, activity = syn_act)
+}
+
+# Add a LIRTS_DEG_Tables Directory to store individual DEG Tables
+syn_deg_dir <- Folder(name="LIRTS_DEG_Tables", parent=syn_project)
+syn_deg_dir <- synStore(
+  syn_deg_dir
+)
+
+for(f in list.files("LIRTS_DEG_Analysis_results/", pattern="Test_DEG")){
+  syn_deg <- File(
+    path=paste0(
+      "LIRTS_DEG_Analysis_results/", f
+    ),
+    parent=syn_deg_dir
+  )
+  synStore(syn_deg, activity = syn_act)
+}
+
+# Add a LIRTS_DEG_Tables Directory to store Princapal Components and
+# BCV Plots (Diagnostic Plots)
+syn_fig_dir <- Folder(name="LIRTS_DEG_PCA_BCV_Plots", parent=syn_project)
+syn_fig_dir <- synStore(
+  syn_fig_dir
+)
+
+for(f in list.files("LIRTS_DEG_Analysis_results/", pattern="PCA_Plot")){
+  syn_pca <- File(
+    path=paste0(
+      "LIRTS_DEG_Analysis_results/", f
+    ),
+    parent=syn_fig_dir
+  )
+  synStore(syn_pca, activity = syn_act)
+}
+
+for(f in list.files("LIRTS_DEG_Analysis_results/", pattern="BCV_Plot")){
+  syn_pca <- File(
+    path=paste0(
+      "LIRTS_DEG_Analysis_results/", f
+    ),
+    parent=syn_fig_dir
+  )
+  synStore(syn_pca, activity = syn_act)
+}
+
+## Create master DEG table in Synapse (if none exists)
+syn_deg_table <- synFindEntityId(
+  "LIRTS_DEG_Master_Table", 
+  parent=syn_project
+)
+
+if(is.null(syn_deg_table)){
+  syn_cols <- list(                                 
+    Column(name="gene_id", columnType='STRING', maximumSize =100), 
+    Column(name='logFC', columnType='DOUBLE'),
+    Column(name='logCPM', columnType='DOUBLE'),
+    Column(name='PValue', columnType='DOUBLE'),
+    Column(name='FDR', columnType='DOUBLE'),
+    Column(name='Avg1', columnType='DOUBLE'),
+    Column(name='Avg2', columnType='DOUBLE'),
+    Column(name='Group_1', columnType='STRING', maximumSize=50),
+    Column(name='Group_2', columnType='STRING', maximumSize=50),
+    Column(name='Test', columnType='STRING', maximumSize=100),
+    Column(name='Samples', columnType='STRING', maximumSize=100)
+  )
+  syn_schema <- Schema(
+    name="LIRTS_DEG_Master_Table",
+    columns=syn_cols,
+    parent=syn_project
+  )
+  syn_table <- Table(
+    schema = syn_schema,
+    values=res[[2]]
+  )
+  
+  syn_table <- synStore(syn_table, activity = syn_act)
+}
