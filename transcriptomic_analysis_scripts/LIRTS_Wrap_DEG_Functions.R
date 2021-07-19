@@ -65,15 +65,19 @@ diagnostic_plots <- function(
   # Colorblind friendly pallatte from 
   # https://bconnelly.net/
   
+  # colors=c(
+  #   "#000000", "#E69F00", "#56B4E9", "#009E73",
+  #   "#0072B2", "#D55E00", "#CC79A7"
+  # )
   colors=c(
-    "#000000", "#E69F00", "#56B4E9", "#009E73",
-    "#0072B2", "#D55E00", "#CC79A7"
+    RColorBrewer::brewer.pal(9, name="RdYlBu")[1:3],
+    RColorBrewer::brewer.pal(9, name="RdYlBu")[7:9]
   )
-
-  png(
+  
+  pdf(
     paste(
-      respath,"/",prefix,"_BCV_Plot.png", sep=""
-    )
+      respath,"/",prefix,"_BCV_Plot.pdf", sep=""
+    ), height=6, wdith=6
   )  
   plotBCV(dge)                                              # BCV Plot
   dev.off()
@@ -338,6 +342,17 @@ process_selected_features <- function(
   color_attrib="hours_pcs", 
   shape_attrib = "batch"
 ){
+  
+  # colors=c(
+  #   "#000000", "#E69F00", "#56B4E9", "#009E73",
+  #   "#0072B2", "#D55E00", "#CC79A7"
+  # )
+  colors=c(
+    RColorBrewer::brewer.pal(9, name="RdYlBu")[1:3],
+    RColorBrewer::brewer.pal(9, name="RdYlBu")[7:9]
+  )
+  
+  
   if(!is.null(counts)){
     dge$counts <- counts
   }
@@ -363,8 +378,16 @@ process_selected_features <- function(
     tibble::remove_rownames()%>%
     tibble::column_to_rownames("label")
   
+  annot_colors=list(
+    hours_pcs=colors[1:6],
+    batch=colors[2:5]
+  )
+  names(annot_colors$hours_pcs)=levels(annot$hours_pcs)
+  names(annot_colors$batch)=levels(annot$batch)
+  
   pheatmap(
     cm, annotation_col =annot,
+    annotation_colors = annot_colors,
     filename = paste0(
       "LIRTS_DEG_Analysis_results/",
       prefix, "_cormat.png"
@@ -539,7 +562,6 @@ genDesignCoefDegTable<-function(y, design, coef, group_labels){
 }
 
 
-
 # Iterate over a set of contrasts, generate DEG Tables and
 #  DEG Summary tables for each contrast. 
 iterate_edgeR_pairwise_contrasts <- function(
@@ -590,7 +612,8 @@ iterate_edgeR_pairwise_contrasts <- function(
       fdr = 'FDR', 
       Avg1 = pair[1],
       Avg2 = pair[2]
-    )
+    )%>%
+      mutate(Samples=prefix)
     
     dg$contrast<-c
     dg$test<-"Exact Test"
@@ -602,7 +625,8 @@ iterate_edgeR_pairwise_contrasts <- function(
       fdr = 'FDR', 
       Avg1 = pair[1],
       Avg2 = pair[2]
-    )
+    )%>%
+      mutate(Samples=prefix)
     dg$contrast<-c
     dg$test<-"QLFTest"
     df<-bind_rows(df, dg)
@@ -646,7 +670,8 @@ iterate_edgeR_design_coefficients <- function(
       fdr = 'FDR', 
       Avg1 = "Avg1",
       Avg2 = "Avg2"
-    )
+    )%>%
+      mutate(Samples=prefix)
     dg$contrast<-colnames(design)[coefs[c]]
     dg$test<-"QLFTest"
     df<-bind_rows(df, dg)
