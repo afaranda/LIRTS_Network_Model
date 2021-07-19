@@ -559,10 +559,7 @@ pdf(
 plot_BCV_flag(
   obj$dge,
   cex=c(1, 0.1),
-  flag=(
-    feature_selection$Sig_Any_Interval & 
-      feature_selection$gene_id %in% key_genes
-  ),
+  flag=feature_selection$Selected,
   flag_labels = c("Tagwise - Selected", "Tagwise - Other")
 )
 dev.off()
