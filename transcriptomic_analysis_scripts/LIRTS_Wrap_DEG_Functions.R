@@ -396,7 +396,7 @@ process_selected_features <- function(
   
   ## Save FPKM matrix for genes with a significant batch dependent logFC
   ## less than 2 (four fold difference) (DBI vs DNA1, DNA2 or DNA3)
-  fpkm$gene_id<-row.names(fpkm)
+  fpkm$gene_id<-tibble::rownames_to_column(fpkm,"gene_id")
   write.csv(
     fpkm, row.names = F, quote = F,
     paste0(
