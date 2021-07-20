@@ -398,7 +398,7 @@ process_selected_features <- function(
   ## less than 2 (four fold difference) (DBI vs DNA1, DNA2 or DNA3)
   fpkm$gene_id<-row.names(fpkm)
   write.csv(
-    fpkm, row.names = F,
+    fpkm, row.names = F, quote = F,
     paste0(
       "LIRTS_DEG_Analysis_results/",
       prefix,"_TMM-FPKM_Matrix.csv"

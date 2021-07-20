@@ -441,7 +441,7 @@ feature_selection <- feature_selection %>%
   )
 
 write.csv(
-  feature_selection,
+  feature_selection, row.names = F,
   file="LIRTS_DEG_Analysis_results/GWT_AllPresent_Feature_Selection_Table.csv"
 )
 
@@ -541,7 +541,8 @@ write.csv(
           LogFC_5 = sum(abs(logFC)>5)
         )
     ), 
-  file="LIRTS_DEG_Analysis_results/GWT_DEG_Count_Totals_by_lfc_threshold.csv"
+  file="LIRTS_DEG_Analysis_results/GWT_DEG_Count_Totals_by_lfc_threshold.csv",
+  row.names = F
 )
 
 process_selected_features(
@@ -696,11 +697,11 @@ feature_selection_bat <- feature_selection_bat %>%
   )
 
 write.csv(
-  feature_selection,
+  feature_selection_bat,
   file=paste0(
     "LIRTS_DEG_Analysis_results/",
     "GWT_APComBatSeq_Feature_Selection_Table.csv"
-  )
+  ), row.names = F
 )
 
 
