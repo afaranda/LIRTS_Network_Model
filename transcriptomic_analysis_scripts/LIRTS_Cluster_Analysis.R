@@ -2,68 +2,155 @@
 # File: TimeSeries_Clusters_Wildtype.R                                       #
 # Created: April 14, 2020                                                    #
 # Author: Adam Faranda                                                       #
-# Purpose:                                                                   #   
-#         Apply various clustering methods to try and identify gene          #
-#         Gene clusters with distinct temporal profiles                      #   
+# Purpose: Use several clustering algorithms (heirarchical, SOTA) 
 #                                                                            #
 ##############################################################################
 
 ############################ Setup Environment ###############################
-
-library(edgeR)
-library(pheatmap)
-library(TMixClust)
+# CHANGE THIS DIRECTORY
 setwd('~/Documents/LEC_Time_Series')
-source('transcriptomic_analysis_scripts/ClusteringFunctions.R')
-min_lfc=4                                          # log fold change threshold
-min_cpm=0.50                                       # Minimum overall abundance
-max_cpm=20                                        # Maximum overall abundance
-  output_prefix="lfc4"                        # Prefix for output files
-dgeFile="LTS_DGEList.Rdata"                   # Rdata file with dgelist object
+#setwd("~/Documents/Adam_LEC_Time_Series_DEG_Analysis_30_Apr_2021")
+#load("GeneLengthTable.Rdata")
+library(dplyr)
+library(cluster)
+library(reshape2)
+library(pheatmap)
+library(sva)
+library(synapser)
+wd<-getwd()
 
-## Helper Function filters a count matrix by given criteria
-filterCPMmat<-function(
-  object = dge, samples = wt_samples, func=cpm,
-  lfc = 3, min_log_cpm = 0, max_log_cpm = 100, include_genes = biosig$gene_id, 
-  lfc_columns = paste('logFC', LETTERS[1:4], sep="."), deg_table = deg
-){
-  ecpm<-func(object, log = T)        # Generate a gene x sample log CPM matrix
+synapser::synLogin()
+syn_project <- "syn25579691"                 ## Synapse ID for this project
+syn_count_dir <- "syn25979754"               ## Synapse folder with counts
+syn_code_dir <- "syn25976329"                ## Synapse folder with code
+syn_sample_table <- "syn25582010"            ## Synapse sample table
+syn_gene_meta <- "syn25976328"               ## Gene Annotations
+syn_expr_mat <- "syn25992507"                ## Foldeer with FPKM Matrices
+
+local_data_dir <- paste0(wd,"/LIRTS_Raw_Data")        ## Local data directory
+
+source('transcriptomic_analysis_scripts/Overlap_Comparison_Functions.R')
+source('transcriptomic_analysis_scripts/LIRTS_Wrap_DEG_Functions.R')
+
+# Create directory to store results (if it does not yet exist)
+if(!dir.exists('LIRTS_Cluster_Analysis_results'))
+{
+  dir.create('LIRTS_Cluster_Analysis_results')
+}
+
+## Analysis parameters for feature selection on global wildtype samples
+cpm_weight = 0.9           ## Weight applied to minimum cpm threshold
+trend_disp_weight = 1.7    ## Weight applied to trended dispersion threshold
+
+
+######################## Fetch Expression Matrices ###########################
+fn <- "GWT_AllPresent_TMM-FPKM_Matrix.csv"
+fpkm <- synFindEntityId(name=fn, parent=syn_expr_mat)
+if(file.exists(paste0("LIRTS_DEG_Analysis_results/",fn))){
+  print("Loading local fpkm matrix")
+  fpkm <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+} else if(!is.null(syn_dge)){
+  print("Fetching fpkm matrix from Synapse")
+  synGet(
+    fpkm,
+    downloadLocation = "LIRTS_DEG_Analysis_results/"
+  )
+  fpkm <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+
+} else {
+  print("Generating fpkm matrix")
+  source("transcriptomic_analysis_scripts/LIRTS_DEG_Analysis.R")
+  fpkm <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+}
+
+fn <- "GWT_APComBatSeq_TMM-FPKM_Matrix.csv"
+fpkm_bat <- synFindEntityId(name=fn, parent=syn_expr_mat)
+if(file.exists(paste0("LIRTS_DEG_Analysis_results/",fn))){
+  print("Loading local fpkm matrix")
+  fpkm_bat <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+} else if(!is.null(syn_dge)){
+  print("Fetching fpkm matrix from Synapse")
+  synGet(
+    fpkm_bat,
+    downloadLocation = "LIRTS_DEG_Analysis_results/"
+  )
+  fpkm_bat <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
   
-  # Filter differential expression table by fold change and abundance
-  dt<-deg_table[
-    apply(deg_table[,lfc_columns], 
-          1, function(x, l=lfc) any(abs(x) > l)),
-    ]
-  dt<-dt[dt$logCPM > min_log_cpm & dt$logCPM < max_log_cpm, ]
-  dt<-dt[dt$FDR < 0.05, ]
+} else {
+  print("Generating fpkm matrix")
+  source("transcriptomic_analysis_scripts/LIRTS_DEG_Analysis.R")
+  fpkm_bat <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+}
+
+
+##################### Fetch Feature Selection Tables #########################
+
+fn <- "GWT_AllPresent_Feature_Selection_Table.csv"
+feature_selection <- synFindEntityId(name=fn, parent=syn_gene_meta)
+if(file.exists(paste0("LIRTS_DEG_Analysis_results/",fn))){
+  print("Loading local feature selection table")
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+} else if(!is.null(syn_dge)){
+  print("Fetching feature selection table from Synapse")
+  synGet(
+    syn_dge,
+    downloadLocation = "LIRTS_DEG_Analysis_results/"
+  )
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
   
-  # If a subset of genes is provided, take the intersection
-  if (!is.null(include_genes)){
-    genes<-intersect(dt$gene_id, include_genes)
-  } else{
-    genes<-dt$gene_id
-  }
-  return(ecpm[genes, samples])
+} else {
+  print("Generating feature selection table")
+  source("transcriptomic_analysis_scripts/LIRTS_DEG_Analysis.R")
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+}
+
+
+
+fn <- "GWT_APComBatSeq_Feature_Selection_Table.csv"
+feature_selection <- synFindEntityId(name=fn, parent=syn_gene_meta)
+if(file.exists(paste0("LIRTS_DEG_Analysis_results/",fn))){
+  print("Loading local feature selection table")
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+} else if(!is.null(syn_dge)){
+  print("Fetching feature selection table from Synapse")
+  synGet(
+    syn_dge,
+    downloadLocation = "LIRTS_DEG_Analysis_results/"
+  )
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
+  
+} else {
+  print("Generating feature selection table")
+  source("transcriptomic_analysis_scripts/LIRTS_DEG_Analysis.R")
+  feature_selection <- read.csv(
+    paste0("LIRTS_DEG_Analysis_results/",fn)
+  )
 }
 
 
 ######################### Load and Prepare Data ##############################
-load(dgeFile)
-s<-master$samples[master$samples$genotype == "WT",'sample']
-dge<-master[,s]
-design<-model.matrix(~interval + batch, dge$samples)
-colnames(design)<-gsub("interval", '', colnames(design))
-keep<-filterByExpr(dge, design)
-dge<-dge[keep,,keep.lib.sizes=F]
-
-# Normalize and Estimate Dispersions
-dge<-calcNormFactors(dge)
-dge<-estimateDisp(dge, design, robust = T)
-
-# Calcuate Statistical Significance (Gene DE at ANY Timepoint)
-fit<-glmQLFit(dge, design)
-qlf<-glmQLFTest(fit, coef=2:5)
-deg<-as.data.frame(topTags(qlf, n=Inf))
 
 # construct datExpr and datTraits using filteredGenes
 datExpr<-t(
@@ -119,22 +206,6 @@ for(c in 1:10){
     geom_line() + theme(legend.position = 'none') + ggtitle(ttl)
   ggsave(fn)
 }
-
-######################### Run A TMixClust Analysis ###########################
-ts_dat <- cpmByGroup(
-  dge[colnames(datExpr),], 
-  group=dge$samples$interval, log=T
-)
-
-ts_clust_3 <-TMixClust(ts_dat, nb_clusters = 3)
-ts_clust_4 <-TMixClust(ts_dat, nb_clusters = 4)
-ts_clust_5 <-TMixClust(ts_dat, nb_clusters = 5)
-ts_clust_6 <-TMixClust(ts_dat, nb_clusters = 6)
-
-save(
-  ts_clust_3, ts_clust_4, ts_clust_5, ts_clust_6,
-  file = "TMix_LTS_Clusters.Rdata"
-)
 
 
 
