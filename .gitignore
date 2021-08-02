@@ -11,3 +11,7 @@ LIRTS_DEG_Spreadsheets/*
 LIRTS_DEG_Analysis_results/*
 LTS_Viewer.zip
 Rplot.pdf
+*.png
+*.pdf
+*.RData
+lfc1 LTS_Wildtype_WGCNA_ModuleTraitCorrelation.pdf
